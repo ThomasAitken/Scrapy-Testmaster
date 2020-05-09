@@ -1,4 +1,8 @@
-This library involves signifcant use of code from both the "Scrapy" library by Scrapy developers, and of code from the "Scrapy Autounit" library by Scrapinghub. This is both in the form of imported functions and functions embedded natively in the files. All three parties have the same conditions of use.
+This library involves signifcant use of code from both the "Scrapy" 
+library by Scrapy developers, and of code from the "Scrapy Autounit" 
+library by Scrapinghub. This is both in the form of imported functions 
+and functions embedded natively in the files. All three parties have 
+the same conditions of use.
 
 Copyright (c) 2020, Thomas Aitken
 Copyright (c) 2018, Scrapinghub

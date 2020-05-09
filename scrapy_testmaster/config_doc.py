@@ -56,7 +56,8 @@ takes precedence.'''
 # triggered (with their data potentially becoming new fixtures) the next time
 # you call "testmaster update" specifying this callback. 
 
-# Format = JSON; field "_class" can be omitted for standard requests
+# Format = Python dicts, not JSON (i.e. use "None" & "True" not null and true); 
+# field "_class" can be omitted for standard requests
 REQUESTS_TO_ADD = [
     #{
         # "url": "https://examplewebsite011235811.com",  
@@ -66,7 +67,6 @@ REQUESTS_TO_ADD = [
         # "data": {"x": "y"}, 
         # "_class": "scrapy.http.request.form.FormRequest",
         # "meta": {"x": "y"},
-        #"homepage": True
     # },
     # {
         # ...
@@ -79,13 +79,13 @@ REQUESTS_TO_ADD = [
 # original test.
 
 class ItemRules(object):
-#   def example_rule(item):
+#   def example_rule(self, item):
 #       assert(float(item["now_price"].strip('$').replace(',', '')) <=
 #       float(item["was_price"].strip('$').replace(',', '')))
     pass
     
 class RequestRules(object):
-#   def example_rule(request):
+#   def example_rule(self, request):
 #       if request["meta"].get("categories", []):
 #           assert(len(request["meta"]["categories"]) >= 2)
     pass

@@ -20,7 +20,7 @@ from .utils import (
     get_middlewares,
     create_dir,
     parse_callback_result,
-    clear_fixtures,
+    # clear_fixtures,
     clean_headers
 )
 from .utils_novel import (
@@ -94,8 +94,8 @@ class TestMasterMiddleware:
 
     def process_spider_input(self, response, spider):
         if self.init == 0:
-            if not (response.meta.get('_parse', None) or response.meta.get('_update', None)):
-                clear_fixtures(self.base_path, sanitize_module_name(spider.name))
+            # if not (response.meta.get('_parse', None) or response.meta.get('_update', None)):
+            #     clear_fixtures(self.base_path, sanitize_module_name(spider.name))
             if response.meta.get('_parse', None):
                 spider_dir = os.path.join(self.base_path, 'tests', sanitize_module_name(spider.name))
                 if os.path.exists(spider_dir):
@@ -174,7 +174,7 @@ class TestMasterMiddleware:
         }
 
         callback_counter = self.fixture_counters.setdefault(callback_name, 0)
-        self.fixture_counters[callback_name] += 1
+        # self.fixture_counters[callback_name] += 1
 
         index = 0
 
@@ -184,7 +184,7 @@ class TestMasterMiddleware:
         _request = clean_request(_request)
         if callback_counter < max_fixtures:
             index = callback_counter + 1
-            if response.meta.get('_update', None) and response.meta.get('_fixture', None):
+            if response.meta.get('_fixture', None):
                 index = response.meta['_fixture']
             validate_results(test_dir, spider.settings, data['result'], request['url'])
             add_sample(index, test_dir, test_name, data)
@@ -203,6 +203,8 @@ class TestMasterMiddleware:
                 
         if index == 1:
             write_test(test_dir, test_name, request['url'])
+
+        self.fixture_counters[callback_name] += 1
 
         #if we don't return an empty list here, 'update' keeps on making
         #requests indefinitely!

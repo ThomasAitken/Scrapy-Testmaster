@@ -8,6 +8,7 @@ import json
 
 from scrapy.http import Request
 from scrapy.utils.python import to_unicode
+from scrapy.utils.reqser import request_from_dict, _get_method
 from scrapy.exceptions import _InvalidOutput, UsageError
 
 
@@ -63,17 +64,17 @@ def clean_request(request_dict):
             decoded[key] = value
     return decoded 
 
-def get_fixture_counts(spider_dir, spider, extra_path):
-    def get_num_fixtures(test_dir):
-        if not os.path.exists(test_dir):
-            return 0
-        try:
-            dir_list = os.listdir(test_dir)
-            fixture_count = len(list(filter(lambda d: '.bin' in d, dir_list)))
-        except IndexError:
-            fixture_count = 0
-        return fixture_count
+def get_num_fixtures(test_dir):
+    if not os.path.exists(test_dir):
+        return 0
+    try:
+        dir_list = os.listdir(test_dir)
+        fixture_count = len(list(filter(lambda d: '.bin' in d, dir_list)))
+    except IndexError:
+        fixture_count = 0
+    return fixture_count
 
+def get_fixture_counts(spider_dir, spider, extra_path):
     fixture_counts = {}
     poss_cb_names = [name for name in dir(spider) if not name.startswith('__') \
         and not name == "start_requests" and callable(getattr(spider, name))]
@@ -97,9 +98,6 @@ def get_fixture_counts(spider_dir, spider, extra_path):
     return fixture_counts
 
 
-
-
-
 def basic_items_check(items, obligate_fields, primary_fields, request_url):
     for item in items:
         if not set(item.keys()).intersection(obligate_fields) == obligate_fields:
@@ -114,7 +112,7 @@ def basic_items_check(items, obligate_fields, primary_fields, request_url):
 def check_global_options(spider_settings, result, request_url):
     obligate_fields = set(spider_settings.getlist('TESTMASTER_OBLIGATE_ITEM_FIELDS', []))
     primary_fields = set(spider_settings.getlist('TESTMASTER_PRIMARY_ITEM_FIELDS', []))
-    items = filter(lambda res: res["type"] == "item", result)
+    items = map(lambda x: x["data"], filter(lambda res: res["type"] == "item", result))
     basic_items_check(items, obligate_fields, primary_fields, request_url)
 
 
@@ -128,17 +126,17 @@ def check_global_rules(spider_settings, result, request_url):
             print("Rules file specified in project/spider "
                 "settings does not exist.")
         if hasattr(module, "ItemRules"):
-            itemclass = module.ItemRules
+            itemclass = module.ItemRules()
             check_item_rules(itemclass, result, request_url)
         if hasattr(module, "RequestRules"):
-            reqclass = module.RequestRules
+            reqclass = module.RequestRules()
             check_req_rules(reqclass, result, request_url)
 
 def check_local_options(config, result, request_url):
     try:
         obligate_fields = set(config.OBLIGATE_ITEM_FIELDS)
         primary_fields = set(config.PRIMARY_ITEM_FIELDS)
-        items = filter(lambda res: res["type"] == "item", result)
+        items = map(lambda x: x["data"], filter(lambda res: res["type"] == "item", result))
         basic_items_check(items, obligate_fields, primary_fields, request_url)
     except AttributeError:
         pass
@@ -172,7 +170,7 @@ def check_item_rules(itemclass, result, request_url):
     itemclass_attrs = [(name, getattr(itemclass, name)) for name in dir(itemclass) \
          if not name.startswith('__')]
     item_rules = filter(lambda entry: callable(entry[1]), itemclass_attrs)
-    items = filter(lambda res: res["type"] == "item", result)
+    items = map(lambda x: x["data"], filter(lambda res: res["type"] == "item", result))
     for rule_func in item_rules:
         for item in items:
             try:
@@ -185,7 +183,7 @@ def check_req_rules(reqclass, result, request_url):
     reqclass_attrs = [(name, getattr(reqclass, name)) for name in dir(reqclass) \
         if not name.startswith('__')]
     req_rules = filter(lambda entry: callable(entry[1]), reqclass_attrs)
-    requests = filter(lambda res: res["type"] == "request", result)
+    requests = map(lambda x: x["data"], filter(lambda res: res["type"] == "request", result))
     for rule_func in req_rules:
         for req in requests:
             try:
@@ -206,7 +204,7 @@ def write_json(test_dir, request, result, fixture_num):
     if os.path.exists(json_path):
         with open(json_path, 'r') as f:
             extant_fixtures = json.load(f)
-        extant_fixtures[fixture_num] = fixture
+        extant_fixtures[str(fixture_num)] = fixture
 
         with open(json_path, 'w') as f:
             json.dump(extant_fixtures, f)
@@ -240,7 +238,7 @@ def get_callbacks(spider_path):
     with open(spider_path, 'r') as spider_file:
         text = spider_file.read()
         callbacks = list(filter(lambda match: not(match.startswith('__') or \
-            match == 'start_requests'), re.findall(r"def\s+(\w+)\(", text)))
+            match == 'start_requests'), re.findall(r"def\s+(\w+)\([^\n]+response", text)))
         return callbacks
 
 def write_config(path):
@@ -264,28 +262,47 @@ def get_homepage_cookies(spider, mode=""):
         print("Couldn't determine homepage to collect cookies from")
         return {}
 
-def get_config_requests(test_dir):
+def get_config_requests(test_dir, spider):
+    curr_fixture_count = get_num_fixtures(test_dir)
     config = get_cb_settings(test_dir)
     try:
         requests_to_add = config.REQUESTS_TO_ADD
     except AttributeError:
         return []
-    return requests_to_add
+    
+    defaults = { 
+        'method': 'GET', 'headers': None, 'body': None, 'cookies': None, 
+        'meta': None, '_encoding': 'utf-8', 'priority': 0, 'dont_filter': False, 
+        'errback': None, 'flags': None, 'cb_kwargs': None
+    }
+    complete_requests = []
+    for req in requests_to_add:
+        if curr_fixture_count < 10:
+            for key, val in defaults.items():
+                req[key] = req.get(key, val)
+            req['callback'] = _get_method(spider, test_dir.split('/')[-1])
+            req['meta']['_update'] = 1
+            req['meta']['_fixture'] = curr_fixture_count + 1
+            complete_requests.append(req)
+            curr_fixture_count += 1
+        else:
+            break
+    complete_requests = [request_from_dict(req) for req in complete_requests]
+    return complete_requests
 
 def trigger_requests(crawler_process, spider, requests, test_dir=""):
     total_requests = requests.copy()
     if test_dir:
-        total_requests += get_config_requests(test_dir)
+        total_requests += get_config_requests(test_dir, spider)
     else:
         for req in requests:
             test_dir = req.meta['_fixture_dir']
-            total_requests += get_config_requests(test_dir)  
+            total_requests += get_config_requests(test_dir, spider)  
     spider_loader = crawler_process.spider_loader
     spidercls = spider_loader.load(spider.name)
     spidercls.start_requests = lambda s: total_requests
     crawler_process.crawl(spidercls)
     crawler_process.start()
-
 
 
 # This and the next function are extremely similar to functions found in

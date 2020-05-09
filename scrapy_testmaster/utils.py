@@ -4,6 +4,7 @@ import copy
 import zlib
 import pickle
 import shutil
+from importlib import import_module
 from itertools import islice
 
 from .utils_novel import get_cb_settings, request_to_dict
@@ -116,9 +117,9 @@ def add_sample(index, test_dir, test_name, data):
         outfile.write(data)
 
 
-def clear_fixtures(base_path, spider_name):
-    path = os.path.join(base_path, "tests", spider_name)
-    shutil.rmtree(path, ignore_errors=True)
+# def clear_fixtures(base_path, spider_name):
+#     path = os.path.join(base_path, "tests", spider_name)
+#     shutil.rmtree(path, ignore_errors=True)
 
 
 def compress_data(data):

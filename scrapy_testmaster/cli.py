@@ -27,10 +27,12 @@ from scrapy_testmaster.utils import (
 )
 from scrapy_testmaster.utils_novel import (
     get_callbacks,
+    get_cb_settings,
     get_fixture_paths,
     write_config,
     get_homepage_cookies,
-    trigger_requests
+    trigger_requests,
+    validate_results
 )
 from .parse import (
     process_options,
@@ -195,16 +197,18 @@ class CommandLine:
             if self.dynamic:
                 request.meta['_update'] = 1
                 request.meta['_fixture'] = fixture_index
+                request.meta['_fixture_dir'] = fixture_dir
                 req_list.append(request)
             else:
                 response_cls = auto_import(
                     data['response'].pop('cls', 'scrapy.http.HtmlResponse')
                 )
                 response = response_cls(
-                    request=data["request"], **data['response'])
+                    request=request, **data['response'])
 
+                cb_settings = get_cb_settings(fixture_dir)
                 data["result"], _ = parse_callback_result(
-                    request.callback(response), spider
+                    request.callback(response), spider, cb_settings
                 )
                 validate_results(fixture_dir, spider.settings, data['result'], data['request']['url'])
                 add_sample(fixture_index, fixture_dir, filename, data)
@@ -231,13 +235,11 @@ class CommandLine:
                 self.spider + '.py'))
             for callback in get_callbacks(spider_path):
                 callback_dir = os.path.join(
-                    self.spider_dir, callback)
+                    self.spider_dir, self.extra_path, callback)
                 cb_exists = False
                 if os.path.exists(callback_dir):
                     cb_exists = True
                 get_or_create_test_dir(self.base_path, self.spider, callback, self.extra_path)
-                callback_dir = os.path.join(
-                    self.spider_dir, callback)
                 if not cb_exists:
                     write_config(callback_dir)
                     did_something = True

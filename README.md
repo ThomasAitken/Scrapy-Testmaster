@@ -27,7 +27,7 @@ The structure of my project is strongly influenced by Scrapy Autounit, and some 
 ---
 ## Installation
 ```
-pip install scrapy_testmaster
+pip install scrapy-testmaster
 ```
 
 ---

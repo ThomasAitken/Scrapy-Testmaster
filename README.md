@@ -469,7 +469,7 @@ My library has fixed an issue with the `update` command that exists in the curre
 
 I noticed that my library has a bug which I inherited from Scrapy Autounit. In
 `parse_object` in *utils.py*, we see the following, which goes wrong when
-`type(_object) is tuple` because tuples don't support item assignment.
+`type(_object) is tuple` because tuples don't support item assignment.  
 ```
 elif isinstance(_object, (list, tuple)):
     for i, v in enumerate(_object):

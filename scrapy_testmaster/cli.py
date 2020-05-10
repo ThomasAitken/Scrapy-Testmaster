@@ -55,10 +55,13 @@ class CommandLine:
             self.args.spider else None 
         try:
             self.callback = self.args.callback
-            self.fixture = self.args.fixture
         except AttributeError:
             self.callback = None
+        try:
+            self.fixture = self.args.fixture
+        except AttributeError:
             self.fixture = None
+            
         if self.command == 'update':
             try:
                 self.new = self.args.new

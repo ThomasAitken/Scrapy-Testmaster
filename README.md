@@ -1,4 +1,4 @@
-# Scrapy Testmaster
+# Scrapy TestMaster
 
 [![PyPI Version](https://img.shields.io/pypi/v/scrapy-testmaster.svg?color=blue)](https://pypi.org/project/scrapy-testmaster)
 

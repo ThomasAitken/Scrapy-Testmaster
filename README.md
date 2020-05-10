@@ -19,6 +19,7 @@ As far as I am aware, Scrapy TestMaster is the most comprehensive tool yet for t
 Apart from the wider range of capabilities, the feature I most want to emphasise about this library is that it gives you the ability to *synthesise the processes of debugging and testcase-generation*. First you set up the custom logic for validating the output of your spider/s, then you call `scrapy crawl` or `testmaster parse`. If the results are acceptable, testcases are written; otherwise, you get an informative error message. 
 
 For more info on how to use this library, see [*What is the Use Case for this Library*](#What-is-the-Use-Case-for-this-Library).  
+
 ---  
 ## Acknowledgements
 The structure of my project is strongly influenced by Scrapy Autounit, and some of the functions from this library exist in my library unchanged. (I've decided to not make scrapy-autounit a dependency of this project, however.) The `scrapy parse` command is, of course, another major influence, the code for which bears a very strong resemblance to `testmaster parse`. Read the License for more.  
@@ -219,9 +220,8 @@ You can set this to a non-default value but override for specific spiders + call
 **TESTMASTER_PATH_TO_RULES_FILE**  
 Insert here a relative path (relative from the project root, minus ".py" extension) to a Python file containing at least one of the following two classes: `class RequestRules(object)` and `class ItemRules(object)`. Within these classes, you can devise any number of functions, given whatever names you like, that take one changeable argument each: a "request" in the former case and an "item" in the latter. These functions are intended to contain one or more "assertion" statements.  
 All items will be tested against your item rules, and equivalently for requests.  
-`Default: None`
+`Default: None`  
 
----
 **Note**: Remember that you can always apply any of these settings per spider including them in your spider's `custom_settings` class attribute - see https://docs.scrapy.org/en/latest/topics/settings.html#settings-per-spider.  
 
 ### Callback-specific settings (in config.py)
@@ -357,7 +357,9 @@ Without the callback argument, it creates multiple subdirectories for each callb
 This command will observe the **TESTMASTER_EXTRA_PATH** in your settings.  
 
 
-### `testmaster inspect` (unchanged from Scrapy Autounit)
+### `testmaster inspect`
+
+This is entirely unchanged from Scrapy Autounit.  
 
 To inspect a fixture's data, you need to pass the spider, callback and fixture name to the command:
 ```
@@ -401,9 +403,9 @@ Then for example, to inspect a fixture's specific request we can do the followin
 ```
 $ testmaster inspect my_spider my_callback 4 | jq '.request'
 ```
-\
 
-### `testmaster update` (extended and altered from Scrapy Autounit)
+
+### `testmaster update`
 You can update your fixtures to match your latest changes in a particular callback to avoid running the whole spider.  
 
 In addition to a few extra abilities (see below), there is  major syntactic difference from the `testmaster update` command and the `autounit update` command, viz., that the callback argument is now optional. If not specified, every fixture for a given spider is updated. Another syntactic difference is the addition of two extra options: `--dynamic` and `--new`, explained via the examples below.  

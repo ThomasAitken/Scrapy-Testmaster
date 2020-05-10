@@ -16,7 +16,7 @@ class MySpider(scrapy.Spider):
 
     custom_settings = dict(
         SPIDER_MIDDLEWARES={{
-            'scrapy_autounit.AutounitMiddleware': 950,
+            'scrapy_testmaster.TestMasterMiddleware': 950,
         }},
         {custom_settings}
     )
@@ -177,7 +177,7 @@ class CaseSpider(object):
             print_test_output(result)
         if not any(
             any(f.endswith('.py') and f != '__init__.py' for f in files)
-            for _, _, files in os.walk(os.path.join(self.dir, 'autounit'))
+            for _, _, files in os.walk(os.path.join(self.dir, 'testmaster'))
         ):
             process_error('No testmaster tests recorded!', result)
 
@@ -225,7 +225,7 @@ class TestRecording(unittest.TestCase):
             spider.parse("""
                 yield {'a': 4}
             """)
-            spider.record(settings=dict(AUTOUNIT_EXTRA_PATH='abc'))
+            spider.record(settings=dict(TESTMASTER_EXTRA_PATH='abc'))
             spider.test()
 
     def test_spider_attributes(self):
@@ -251,8 +251,8 @@ class TestRecording(unittest.TestCase):
                 yield {'a': 4}
             """)
             spider.record(settings=dict(
-                AUTOUNIT_EXCLUDED_FIELDS='_base_url',
-                AUTOUNIT_INCLUDED_SETTINGS='AUTOUNIT_EXCLUDED_FIELDS'))
+                TESTMASTER_EXCLUDED_FIELDS='_base_url',
+                TESTMASTER_INCLUDED_SETTINGS='TESTMASTER_EXCLUDED_FIELDS'))
             spider.test()
 
     def test_spider_attributes_recursive(self):
@@ -339,7 +339,7 @@ class TestRecording(unittest.TestCase):
         with CaseSpider() as spider:
             spider.imports('import time')
             spider.custom_settings('''
-                AUTOUNIT_SKIPPED_FIELDS = ['ts']
+                TESTMASTER_SKIPPED_FIELDS = ['ts']
             ''')
             spider.start_requests("yield scrapy.Request('data:text/plain,')")
             spider.parse('''
@@ -353,7 +353,7 @@ class TestRecording(unittest.TestCase):
         with CaseSpider() as spider:
             spider.imports('import random')
             spider.custom_settings('''
-                AUTOUNIT_REQUEST_SKIPPED_FIELDS = ['url']
+                TESTMASTER_REQUEST_SKIPPED_FIELDS = ['url']
             ''')
             spider.start_requests("yield scrapy.Request('data:text/plain,')")
             spider.parse('''
@@ -456,8 +456,8 @@ class TestRecording(unittest.TestCase):
             @property
             def template(self):
                 return re.sub(
-                    r'(scrapy\_autounit)(\.)(AutounitMiddleware)',
-                    r'tests.DelObjectsAutounitMiddleware',
+                    r'(scrapy\_testmaster)(\.)(TestMasterMiddleware)',
+                    r'tests.DelObjectsTestMasterMiddleware',
                     super(ModifiedSpider, self).template)
         with ModifiedSpider() as spider:
             spider.set_init("""
@@ -485,7 +485,7 @@ class TestRecording(unittest.TestCase):
             @property
             def template(self):
                 return re.sub(
-                    r'(scrapy\_autounit)(\.)(AutounitMiddleware)',
+                    r'(scrapy\_testmaster)(\.)(TestMasterMiddleware)',
                     r'tests.DelAttr\3', super(ModifiedSpider, self).template)
 
         with ModifiedSpider() as spider:

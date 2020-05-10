@@ -30,6 +30,7 @@ from .utils_novel import (
     get_fixture_counts,
     update_max_fixtures,
     clean_request,
+    clean_splash,
     request_to_dict
 )
 
@@ -99,7 +100,8 @@ class TestMasterMiddleware:
             if response.meta.get('_parse', None):
                 spider_dir = os.path.join(self.base_path, 'tests', sanitize_module_name(spider.name))
                 if os.path.exists(spider_dir):
-                    self.fixture_counters = get_fixture_counts(spider_dir, spider, spider.settings.get('TESTMASTER_EXTRA_PATH'))
+                    self.fixture_counters = get_fixture_counts(spider_dir, spider, \
+                        spider.settings.get('TESTMASTER_EXTRA_PATH'))
             self.init += 1
         the_request = response.request
         #the parse command screws with middleware order because it uses essentially
@@ -180,8 +182,14 @@ class TestMasterMiddleware:
 
         max_fixtures = update_max_fixtures(cb_settings, self.max_fixtures)
         _request = copy.deepcopy(data['request'])
-        _request['headers'] = clean_headers(_request['headers'], spider.settings, cb_settings, "decode")
+        _request['headers'] = clean_headers(_request['headers'], spider.settings, \
+            cb_settings, "decode")
         _request = clean_request(_request)
+        if _request.get('meta', {}).get('splash', {}).get('splash_headers', {}):
+            _request['meta']['splash']['splash_headers'] = \
+            clean_splash(_request['meta']['splash']['splash_headers'], spider.settings, \
+                cb_settings)
+
         if callback_counter < max_fixtures:
             index = callback_counter + 1
             if response.meta.get('_fixture', None):

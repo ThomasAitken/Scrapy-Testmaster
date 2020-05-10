@@ -16,9 +16,21 @@ As far as I am aware, Scrapy TestMaster is the most comprehensive tool yet for t
 - Updating and validation of existing tests via a re-parsing of the original HTML source with the current spider code (a la *autounit update*).
 - Updating and validation of existing tests via an additional re-downloading of the HTML source using the same request.
 
-Apart from the wider range of capabilities, the key difference between this and other Scrapy testing libraries that I have encountered is that Scrapy TestMaster *synthesises the processes of debugging and testcase-generation*. First you set up the custom logic for validating the output of your spider/s, then you call `scrapy crawl` or `testmaster parse`. If the results are acceptable, testcases are written; otherwise, you get an informative error message. See [*What is the Use Case for this Library*](#What is the Use Case for this Library?) for more.
+Apart from the wider range of capabilities, the feature I most want to emphasise about this library is that it gives you the ability to *synthesise the processes of debugging and testcase-generation*. First you set up the custom logic for validating the output of your spider/s, then you call `scrapy crawl` or `testmaster parse`. If the results are acceptable, testcases are written; otherwise, you get an informative error message. 
+
+See [*What is the Use Case for this Library*](#What-is-the-Use-Case-for-this-Library?) for more.
   
-Here is an example of the directory tree of your project once the fixtures are created:  
+
+## Acknowledgements
+The structure of my project is strongly influenced by Scrapy Autounit, and some of the functions from this library exist in my library unchanged. (I've decided to not make scrapy-autounit a dependency of this project, however.) The `scrapy parse` command is, of course, another major influence, the code for which bears a very strong resemblance to `testmaster parse`. Read the License for more.
+
+## Installation
+```
+pip install scrapy_testmaster
+```
+
+## What it looks like
+This is what your project will look like after calling `scrapy crawl` or `testmaster parse` with TestMasterMiddleware enabled.
 ```
 my_project
 
@@ -47,15 +59,6 @@ my_project
 └── scrapy.cfg
 ```
 
-## Acknowledgements
-It would be remiss of me to not draw attention to the fact that the structure of my project is very influenced by Scrapy Autounit, and some of the functions from this library exist in my library unchanged. (I've decided to not make scrapy-autounit a dependency of this project, however.) The `scrapy parse` command is, of course, another major influence, the code for which bears a very strong resemblance to `testmaster parse`.
-
-## Installation
-
-```
-pip install scrapy_testmaster
-```
-
 ## Usage
 ### Basic
 To begin validating output or generating tests with `testmaster parse` or `scrapy crawl`, set `TESTMASTER_ENABLED = True` in `settings.py`, then add the spider middleware to your `SPIDER_MIDDLEWARES` setting (no specific order required):  
@@ -71,7 +74,7 @@ Make sure you enable Scrapy Testmaster in your settings:
 TESTMASTER_ENABLED = True
 ```
 To generate your fixtures, you have three basic options:
-1. Just run your spiders as usual, Scrapy Testmaster will generate them for you. 
+1. Scrapy Testmaster will generate them for you while running your spider as usual. 
 ```
 $ scrapy crawl my_spider
 ```
@@ -79,7 +82,7 @@ $ scrapy crawl my_spider
 ```
 $ testmaster parse "url1,url2,url3" --spider=my_spider -c my_callback --meta='{"x":"y"}' ...
 ```
-3. Specify requests to be later executed in JSON format within the `config.py` file for the spider and callback in question (e.g. `"url":"", "headers":{..}, "_class":"scrapy.http.request.form.FormRequest"`}). These will get executed whenever you call `testmaster update` with the appropriate spider, callback args and options (see [`testmaster update`](#testmaster-update), and lead to new fixtures being written subject to the usual conditions.
+3. Specify requests to be later executed in python-dict format within the `config.py` file for the spider and callback in question (e.g. `"url":"", "headers":{..}, "_class":"scrapy.http.request.form.FormRequest"`}). These will get executed whenever you call `testmaster update` with the appropriate spider, callback args and options (see [`testmaster update`](#testmaster-update), and lead to new fixtures being written subject to the usual conditions.
 ```
 $ testmaster update my_spider -c my_callback
 ```
@@ -112,7 +115,7 @@ It's worth stating that all of the commands in this library apart from `establis
 
 ###### Setting up testing environment for given spider/callback before making any requests
 ```
-$ testmaster establish my_spider -c my_callback[optional]
+$ testmaster establish my_spider -c my_callback
 ```
 (If no callback is specified, every single callback in the spider will get its own directory with a `config.py` file.)
 ###### Generating new tests for specific urls on the fly
@@ -127,7 +130,7 @@ $ testmaster parse "url1,url2,url3,..." --spider=my_spider -c my_callback --meta
 If the results generated by such a command are all fine according to your custom rules, the fixtures/tests will be written (assuming you haven't reached the fixtures cap you set). Otherwise, you will get an error message about the failure mode. This is an example of how you can merge the debugging and test-generation processes.
 ###### Updating the results of tests in response to changes in spider code (i.e. re-parsing the downloaded source within the fixture)
 ```
-$ testmaster update my_spider -c my_callback --fixture n[optional]
+$ testmaster update my_spider -c my_callback --fixture n
 ```
 (If no fixture is specified, every fixture is changed.)
 ###### Remaking the entire fixture using the original request to check for a website change (i.e. re-downloading the response)
@@ -135,7 +138,7 @@ $ testmaster update my_spider -c my_callback --fixture n[optional]
 $ testmaster update my_spider -c my_callback --dynamic
 ```
 ###### Triggering the download of complex requests (e.g. FormRequests) described in a config.py file
-Define a request in JSON format within a config.py file for the relevant callback, and then call:
+Define a request in Python-dict within a config.py file for the relevant callback, and then call:
 ```
 testmaster update my_spider -c my_callback --new
 ```
@@ -157,8 +160,10 @@ The fixtures are essentially just test cases for your spider. Exactly as in Scra
 #### N.B.
 You will notice that there is heavy overlap here with the settings in config.py. So you can set custom validation rules at any level, although any settings specified to a contrary, non-default value in a `config.py` file will take precedence for that particular callback.
 
+#### Inherited from Scrapy Autounit
+
 **TESTMASTER_ENABLED**  
-Set this to `True` or `False` to enable or disable unit test generation when calling `scrapy crawl`, `testmaster parse` or to run `testmaster update` with the `--dynamic` or `--new` options. The other commands are completely unaffected.
+Set this to `True` or `False` to enable or disable unit test generation when calling `scrapy crawl`, `testmaster parse` or when running `testmaster update` with the `--dynamic` or `--new` options. The other commands are completely unaffected (e.g. you can run static updates with or without this enabled).
 
 **TESTMASTER_MAX_FIXTURES_PER_CALLBACK**  
 Sets the maximum number of fixtures to store per callback.  
@@ -177,11 +182,12 @@ Similar to TESTMASTER_SKIPPED_FIELDS but applied to requests instead of items.
 
 **TESTMASTER_EXCLUDED_HEADERS**  
 Sets a list of headers to exclude from requests recording.  
-For security reasons, Testmaster already excludes `Authorization` and `Proxy-Authorization` headers by default, if you want to include them in your fixtures see *`TESTMASTER_INCLUDED_AUTH_HEADERS`*.  
+For security reasons, Testmaster already excludes `Authorization` and `Proxy-Authorization` headers by default, if you want to include them in your fixtures and `view.json` see *`TESTMASTER_INCLUDED_AUTH_HEADERS`*.  
 `Default: []`  
 
 **TESTMASTER_INCLUDED_AUTH_HEADERS**  
-If you want to include `Authorization` or `Proxy-Authorization` headers in your fixtures, add one or both of them to this list.  
+If you want to include `Authorization` or `Proxy-Authorization` headers in your fixtures and `view.json`, add one or both of them to this list. 
+This also applies to a Scrapy-Splash API key which would normally reside in `splash_headers` under the `Authorization` key. Put 'Authorization' in this list to include such a key.
 `Default: []`
 
 **TESTMASTER_INCLUDED_SETTINGS**  
@@ -190,24 +196,25 @@ Sets a list of settings names to be recorded in the generated test case.
 
 **TESTMASTER_EXTRA_PATH**  
 This is an extra string element to add to the test path and name between the spider name and callback name. You can use this to separate tests from the same spider with different configurations. This is respected by all methods of creating directories for spiders + callbacks, i.e. `testmaster establish`, `testmaster parse` and `scrapy crawl`.   It is also respected by `testmaster update` when it's working out what fixtures you want to update.  
-`Default: None`
+`Default: None`  
+
+#### New Settings
+
+The following 3 settings are the main way to implement custom testing behaviour. They have two utilities: *ex-ante* and *ex-post*. **ex-ante**: if the rules established by these settings are violated while Testmaster is evaluating the results of a request that has not yet become a fixture, the fixture will not be written. **ex-post**: if any of them are violated when you're updating an existing fixture (i.e. parsing the pre-downloaded response with new code), you know that you have made a bad change to your code. 
 
 **TESTMASTER_OBLIGATE_ITEM_FIELDS**  
-This is a meta setting, which can be used to determine whether a result should become part of a fixture (i.e. the basis for a test).
 Insert here any field names which you intend to exist in every "item" (as opposed to "request") object outputted by the tests within this project. 
-If an item outputted by a request executed while running *testmaster parse* or *scrapy crawl* lacks this field name, the fixture will not be written.
 You can set this to a non-default value but override for specific spiders + callbacks by tweaking the corresponding field in the relevant local config.py file/s.  
 `Default: []`
 
 **TESTMASTER_PRIMARY_ITEM_FIELDS**  
 Insert here any field names which you intend to be non-empty in every "item" object outputted by the tests within this project.
-If an item outputted by a request executed while running *testmaster parse* or *scrapy crawl* has no value for this field (or name), the fixture will not be written. 
 It is not necessary to duplicate a field name across this and the above setting; just put the field in this list.
 You can set this to a non-default value but override for specific spiders + callbacks by tweaking the corresponding field in the relevant local config.py file/s.   
 `Default: []`
 
 **TESTMASTER_PATH_TO_RULES_FILE**  
-Insert here a relative path to a .py file containing two classes: `class RequestRules(object)` and `class ItemRules(object)`. Within these classes, you can devise any number of functions, given whatever names you like, that take one argument each: a "request" in the former case and an "item" in the latter. These functions are intended to contain one or more "assertion" statements. These custom rules can have two levels of utility: meta and non-meta. Non-meta: if any of these raise an AssertionError for an extant test, you know that you have made a bad change to your code. Meta: if these assertion statements are violated while Testmaster is evaluating the results of a request that has not yet become a fixture, the fixture will not be written.
+Insert here a relative path to a .py file containing at least one of the following two classes: `class RequestRules(object)` and `class ItemRules(object)`. Within these classes, you can devise any number of functions, given whatever names you like, that take one changeable argument each: a "request" in the former case and an "item" in the latter. These functions are intended to contain one or more "assertion" statements. These custom rules can have two levels of utility: 
 If you create such a file, then before any tests are automatically written by `testmaster parse` or `scrapy crawl`, the output will be checked against these rules. All items will be tested against your item rules, and equivalently for requests.  
 `Default: None`
 
@@ -242,38 +249,49 @@ Equivalent to global setting.
 Equivalent to global setting.
 
 **REQUESTS_TO_ADD**  
-This is for storing complex requests in Python dict format that will be executed the next time you run any command of `testmaster update` with args indicating the relevant callback, and using either of the options `--dynamic` or `--new` (`--new` means only these requests are downloaded, rather than re-downloading all the existing testcases). It allows you to use all the standard request args as keys plus the "_class" key for specifying a FormRequest or a SplashRequest. The motivation behind it is the extreme 'fiddliness' involved in trying to do the same thing for complex requests using `testmaster parse` on the command-line.  
-Example of request format:
+This is for storing complex requests in Python dict format that will be executed the next time you run any command of `testmaster update` with args indicating the relevant callback, and using either of the options `--dynamic` or `--new` (`--new` means only these requests are downloaded, rather than re-downloading all the existing testcases). It allows you to use all the standard request args as keys plus the "_class" key for specifying a FormRequest or a SplashRequest. The motivation behind it is the difficulty/impossibility involved in trying to do the same thing for special/complex requests using `testmaster parse` on the command-line. Obviously, you can also specify simple requests here if you like.  
+Example of request format with special requests:
 ```
+[
     {
         "url": "https://examplewebsite011235811.com/info",  
-        "callback":"parse_items",
         "headers": {"referer":"...", "content_type": "..."},
-        "cookies": {},
         "method": "POST",
         "data": {"x": "y"}, 
         "_class": "scrapy.http.request.form.FormRequest",
         "meta": {"x": "y"}
+    },
+    {
+    	"url": "https://fe7vw05z-splash.scrapinghub.com/render.html", 
+	"method": "POST", 
+	"headers": {...}, 
+	"body": "{...}", 
+	"meta": {"splash": {"endpoint": "render.html", "splash_headers": {'Authorization': INSERT_API_KEY}, "args": {"url": "..."}}},
+	"dont_filter": false,
+	"_class": "scrapy_splash.request.SplashRequest"
     }
+]
 ```
 `Default: []`  
-All of these keys except "url". The callback is inferred from the location of the config.py file. 
+All of these keys are optional except "url" (similar to `testmaster parse`). The callback is inferred from the location of the config.py file. You can get a sense of what the format for a given request needs to look like by running `scrapy crawl` for that spider and looking at `view.json` for the relevant callback. The only caveat is that JSON "nulls" need to be converted to Python "None", and same for JSON "true"/"false" (to "True"/"False").
 When this request is triggered, it is treated as if you had run `testmaster parse` with the same info. So its response and results can then become part of a new fixture if all your validation rules are passed and there is space.
 
-Currently, you're going to have to delete these requests manually from the `config.py` file to make sure they're not triggered again next time you execute `testmaster update`.
+Currently, you're going to have to delete these requests manually from the `config.py` file after they've been added to make sure they're not triggered again next time you execute `testmaster update`.
 
 **Other**  
 All config.py files will include by default two classes: `class ItemRules(object)` and `class RequestRules(object)`. You can define any number of methods for these classes that take args {*self*, *item*} and {*self*, *request*} respectively. The logic for such methods was explained previously in the precis for **TESTMASTER_PATH_TO_RULES_FILE**.
 
 ###Format of view.json  
 ```
-{"1": {"request": {"url": "...", "callback": "...", "errback": null, "method": "GET", "headers": {...}, "body": "", "cookies": {}, "meta": {...}, "_encoding": "utf-8", "priority": 0, "dont_filter": false, "flags": [], "cb_kwargs": {}}, "num_items": 0, "num_requests": 1}, "2": {"request": {...}}}
+{"1": {"request": {"url": "...", "callback": "...", "errback": null, "method": "GET", "headers": {...}, "body": "", 
+"cookies": {}, "meta": {...}, "_encoding": "utf-8", "priority": 0, "dont_filter": false, "flags": [], "cb_kwargs": 
+{}}, "num_items": 0, "num_requests": 1}, "2": {"request": {...}}}
 ```
 
 ---
 ## Command line interface
 
-- [`testmaster parse`](#testmaster-parse): makes a number of command-line specified requests and automatically generates tests (if conditions meet) 
+- [`testmaster parse`](#testmaster-parse): makes a number of command-line specified requests and automatically generates testcases (if conditions meet) 
 - [`testmaster establish`](#testmaster-establish): generates a directory with a `config.py` file for every callback specified
 - [`testmaster update`](#testmaster-update): updates fixtures to test code changes or with a view to guarding against website changes
 - [`testmaster inspect`](#testmaster-inspect): inspects fixtures returning a JSON object
@@ -284,13 +302,19 @@ All config.py files will include by default two classes: `class ItemRules(object
 
 
 ### `testmaster parse`
-This is just like `scrapy parse` (https://docs.scrapy.org/en/latest/topics/commands.html#std-command-parse) but with greater powers --- a greater diversity of requests can be specified and multiple urls can be inputted. Furthermore, if you enable `TestMasterMiddleware`, then the requests triggered by this command will be used to create new testcases, assuming the results pass any custom rules you set down and you haven't reached the max fixtures limit. 
+This is just like `scrapy parse` (https://docs.scrapy.org/en/latest/topics/commands.html#std-command-parse) but with greater powers: a greater diversity of requests can be specified and multiple urls can be inputted. Furthermore, if you enable `TestMasterMiddleware`, then the requests triggered by this command will be used to create new testcases, assuming the results pass any custom rules you set down and you haven't reached the max fixtures limit. 
 
-`testmaster parse` takes exactly the same arguments as `scrapy parse`, plus three additional arguments: headers, cookies, and an additional option `--homepage` to visit an (inferred) website homepage to pick up one or more session token/s before the primary requests are kicked off. The url argument remains the same except that many urls can be inserted at once, separated by commas, i.e. "https://www.exampledomain.com/page1,https://www.exampledomain.com/page2,https://exampledomain.com/page2". The depth argument is (of course) re-calibrated for the input plurality. 
+`testmaster parse` takes exactly the same arguments as `scrapy parse`, plus three additional arguments: headers, cookies, and an additional option `--homepage` to visit an (inferred) website homepage to pick up one or more session token/s before the primary requests are kicked off. The url argument remains the same except that many urls can be inserted at once, separated by commas, i.e. `"https://www.exampledomain.com/page1,https://www.exampledomain.com/page2,https://exampledomain.com/page2"`. The depth argument is (of course) re-calibrated for the input plurality. 
 
 Like `scrapy crawl`, this command will not write any tests automatically unless `TestMasterMiddleware` is enabled. Unlike `scrapy crawl`, this command will never generate tests/fixtures that overwrite existing ones; it is additive only (though also beholden to ***TESTMASTER_MAX_FIXTURES_PER_CALLBACK**).
 
 One miscellaneous thing to note is that if you have a set value for **TESTMASTER_EXTRA_PATH** in your settings, this command will observe this value, i.e. it will create/update the directory 'testmaster/tests/[extra_path]/spider_name/callback_name'.
+
+Example:
+```
+$ testmaster parse "url1,url2,url3" --spider=my_spider -c my_callback --meta='{"x":"y"}' --homepage -d 2...
+```
+Because of the `homepage` arg, this will first try to grab a homepage value from the `start_urls` field for `my_spider` (it will move on if it fails). It will pick up cookies from the homepage if possible, then use these to make the requests to the specified urls. Because of the `--depth=2` arg, it will make one further request for each of the three requests that lead to another request in `my_callback` (so be aware of depth explosion!). For each of the requests generated, a fixture will be written subject to the usual conditions and/or custom rules, and (as with the Scrapy parse command) the scraped items will be printed to the terminal for perusal.
 
 #### Why doesn't `scrapy parse` take multiple urls?
 I suspect its developers figured that if the requests need to be made in a similar manner across different webpages, those webpages cannot nontrivially differ. But I've found in my own scraping efforts that this is an incorrect assumption in a large number of cases. For example, it is common that one's callback code accounts differently for pages with no data versus non-empty pages, or pages with a data field X differently from pages without, and the requests to these two classes of page can be made in the same way (in the simplest case, with default headers and no cookies). Certainly, there is still an infinity of websites out there where most/all of the pages within the domain can be accessed without page-specific headers or parameters. So it's very useful to have a command which allows you to test several differing cases with one call.
@@ -433,7 +457,7 @@ Please let me know if you've found an issue or bug with this package, and I'll t
 If you have an idea for a feature, I'll be less likely to want to work on it myself unless it's a really good idea. I have other projects to work on. I made sure not to release this until I had implemented every feature I wanted, because I would ideally like to just move on from it.
 
 ## On the Tests for this Library
-Ironically, this library is somewhat starved of automatic tests at the moment. In terms of the tests that can be found in this project, I adapted the tests that were part of the Scrapy Autounit project and left it at that. This is not to say that it wasn't well-tested; each component was tested as it was completed, but tested via direct execution, with the testcases being projects that belong to a proprietary codebase. It would be very welcome if someone were to write up a stronger automatic test suite. Personally, I'm not going to put any effort into this issue; it is for the world to continue my work on this library, should the world desire.
+Ironically, this library is somewhat starved of automatic tests at the moment. In terms of the tests that can be found in this project, I adapted the tests that were part of the Scrapy Autounit project and left it at that. This is not to say that it wasn't well-tested; each component was tested as it was completed, but tested via direct execution, with the testcases being projects that belong to a proprietary codebase. This was by far the easiest way to test a project like this, because I was able to test the correctness of the logic of all the helper commands by checking for the higher-level correctness of each of the commands under different parameters/settings. But obviously it would be very welcome if someone were to write up a stronger automatic test suite. Personally, I'm not going to put any effort into this issue; it is for the world to continue my work on this library, should the world desire.
 
 ## Other
 My library has fixed an issue with the `update` command that exists in the current version of Scrapy Autounit: https://github.com/scrapinghub/scrapy-autounit/issues/73. Line in cli.py `response = response_cls(request=data['request'], **data['response'])` which should be `response = response_cls(request=request, **data['response'])`.

@@ -64,6 +64,30 @@ def clean_request(request_dict):
             decoded[key] = value
     return decoded 
 
+def clean_splash(splash_headers, spider_settings, cb_settings):
+    excluded_global = spider_settings.get('TESTMASTER_EXCLUDED_HEADERS', default=[])
+    try:
+        excluded_local = cb_settings.EXCLUDED_HEADERS
+    except AttributeError:
+        excluded_local = []
+    excluded = excluded_local if excluded_local else excluded_global
+
+    included_global = spider_settings.get('TESTMASTER_INCLUDED_AUTH_HEADERS', default=[])
+    try:
+        included_local = cb_settings.INCLUDED_AUTH_HEADERS
+    except AttributeError:
+        included_local = []
+    included = included_local if included_local else included_global
+    if 'Authorization' not in included or 'Authorization' in excluded:
+        splash_headers.pop('Authorization', None)
+    #deliberate inclusion!
+    if 'Authorization' in splash_headers:
+        try:
+            splash_headers['Authorization'] = splash_headers['Authorization'].decode() 
+        except AttributeError:
+            pass
+    return splash_headers
+
 def get_num_fixtures(test_dir):
     if not os.path.exists(test_dir):
         return 0
@@ -202,6 +226,7 @@ def write_json(test_dir, request, result, fixture_num):
     fixture["num_requests"] = get_num_objects(result, "request")
     json_path = os.path.join(test_dir, 'view.json')
     if os.path.exists(json_path):
+        print(fixture)
         with open(json_path, 'r') as f:
             extant_fixtures = json.load(f)
         extant_fixtures[str(fixture_num)] = fixture

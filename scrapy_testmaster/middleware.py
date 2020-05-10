@@ -107,7 +107,7 @@ class TestMasterMiddleware:
         #the parse command screws with middleware order because it uses essentially
         #two callbacks: a preliminary internal one and the real one. This is
         #grabbing the real callback from the meta.
-        if response.meta.get('_parse', None):
+        if response.meta.get('_parse', None) and not response.meta.get('_update', None):
             the_request = response.request.copy()
             the_request.callback = response.meta['_callback']
             temp_meta = response.meta.copy()
@@ -152,7 +152,7 @@ class TestMasterMiddleware:
         #parse command will return requests at the end of callbacks but not
         #items... As such I am processing the result as it comes, before it
         #reaches this point (and  storing the result in meta).
-        if response.meta.get('_parse', None):
+        if response.meta.get('_parse', None) and not response.meta.get('_update', None):
             processed_result = response.meta.pop('_processed_result')
             out = result
         else:   

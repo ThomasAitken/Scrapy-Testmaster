@@ -321,9 +321,12 @@ def trigger_requests(crawler_process, spider, requests, test_dir=""):
     if test_dir:
         total_requests += get_config_requests(test_dir, spider)
     else:
+        examined_dirs = []
         for req in requests:
             test_dir = req.meta['_fixture_dir']
-            total_requests += get_config_requests(test_dir, spider)  
+            if test_dir not in examined_dirs:
+                total_requests += get_config_requests(test_dir, spider)  
+                examined_dirs.append(test_dir)
     spider_loader = crawler_process.spider_loader
     spidercls = spider_loader.load(spider.name)
     spidercls.start_requests = lambda s: total_requests

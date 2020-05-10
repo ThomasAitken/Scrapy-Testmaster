@@ -184,10 +184,12 @@ class CommandLine:
         req_list = []
     
         homepage_cookies = {}
+        i = 0
         for path in to_update:
             data, _, spider, _ = prepare_callback_replay(path)
-            if self.dynamic or self.new and path == to_update[0]:
+            if self.dynamic or self.new and i == 0:
                 homepage_cookies = get_homepage_cookies(spider)
+                i += 1
 
             request = request_from_dict(data['request'], spider)
             if homepage_cookies:

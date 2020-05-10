@@ -1,0 +1,402 @@
+import os
+import shutil
+import importlib
+import inspect
+from glob import glob
+import re
+import json
+
+from scrapy.http import Request
+from scrapy.utils.python import to_unicode
+from scrapy.utils.reqser import request_from_dict, _get_method
+from scrapy.exceptions import _InvalidOutput, UsageError
+
+
+def get_cb_settings(test_dir):
+    config_path = os.path.join(test_dir, 'config.py')
+    if not os.path.exists(config_path):
+        return None
+    spec = importlib.util.spec_from_file_location("config", config_path)
+    config = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(config)
+    return config
+
+def get_fixture_paths(spider_test_dir, spider_path, extra_path):
+    poss_cb_names = get_callbacks(spider_path)
+    dir_list = os.listdir(spider_test_dir) 
+    paths = []
+    #assuming extra path in play
+    if len(set(dir_list).intersection(set(poss_cb_names))) == 0:
+        if extra_path:
+            diff_path = os.path.join(spider_test_dir, extra_path)
+            dir_list = os.listdir(diff_path)
+            cb_list = filter(lambda d: '.' not in d, dir_list)
+            for cb in cb_list:
+                cb_path = os.path.join(diff_path, cb)
+                target = os.path.join(cb_path, '*.bin')
+                paths += glob(target)
+    else:
+        cb_list = filter(lambda d: '.' not in d, dir_list)
+        for cb in cb_list:
+            cb_path = os.path.join(spider_test_dir, cb)
+            target = os.path.join(cb_path, '*.bin')
+            paths += glob(target)
+        
+    return paths
+
+def update_max_fixtures(cb_settings, global_max_fixtures):
+    try:
+        max_fixtures = cb_settings.MAX_FIXTURES
+        return max_fixtures
+    except AttributeError:
+        return global_max_fixtures
+
+def clean_request(request_dict):
+    decoded = {}
+    for key,value in request_dict.items():
+        if type(value) not in (list, str):
+            try:
+                value = value.decode()
+                decoded[key] = value
+            except:
+                decoded[key] = value
+        else:
+            decoded[key] = value
+    return decoded 
+
+def clean_splash(splash_headers, spider_settings, cb_settings):
+    excluded_global = spider_settings.get('TESTMASTER_EXCLUDED_HEADERS', default=[])
+    try:
+        excluded_local = cb_settings.EXCLUDED_HEADERS
+    except AttributeError:
+        excluded_local = []
+    excluded = excluded_local if excluded_local else excluded_global
+
+    included_global = spider_settings.get('TESTMASTER_INCLUDED_AUTH_HEADERS', default=[])
+    try:
+        included_local = cb_settings.INCLUDED_AUTH_HEADERS
+    except AttributeError:
+        included_local = []
+    included = included_local if included_local else included_global
+    if 'Authorization' not in included or 'Authorization' in excluded:
+        splash_headers.pop('Authorization', None)
+    #deliberate inclusion!
+    if 'Authorization' in splash_headers:
+        try:
+            splash_headers['Authorization'] = splash_headers['Authorization'].decode() 
+        except AttributeError:
+            pass
+    return splash_headers
+
+def get_num_fixtures(test_dir):
+    if not os.path.exists(test_dir):
+        return 0
+    try:
+        dir_list = os.listdir(test_dir)
+        fixture_count = len(list(filter(lambda d: '.bin' in d, dir_list)))
+    except IndexError:
+        fixture_count = 0
+    return fixture_count
+
+def get_fixture_counts(spider_dir, spider, extra_path):
+    fixture_counts = {}
+    poss_cb_names = [name for name in dir(spider) if not name.startswith('__') \
+        and not name == "start_requests" and callable(getattr(spider, name))]
+    dir_list = os.listdir(spider_dir) 
+    #assuming extra path in play
+    if len(set(dir_list).intersection(set(poss_cb_names))) == 0:
+        if extra_path:
+            new_path = os.path.join(spider_dir, extra_path)
+            dir_list = os.listdir(new_path)
+            cb_list = filter(lambda d: '.' not in d, dir_list)
+            for cb in cb_list:
+                test_dir = os.path.join(new_path, cb)
+                fixture_counts[cb] = get_num_fixtures(test_dir)
+        else:
+            for cb in poss_cb_names:
+                fixture_counts[cb] = 0
+    else:
+        for cb in filter(lambda d: '.' not in d, dir_list):
+            test_dir = os.path.join(spider_dir, cb)
+            fixture_counts[cb] = get_num_fixtures(test_dir)
+    return fixture_counts
+
+
+def basic_items_check(items, obligate_fields, primary_fields, request_url):
+    for item in items:
+        if not set(item.keys()).intersection(obligate_fields) == obligate_fields:
+            missing_fields = obligate_fields.difference(item.keys()) 
+            raise _InvalidOutput("Obligate fields check failed. Request url: %s. "
+                "Missing fields: %s" % (request_url, missing_fields))
+        for field in primary_fields:
+            if not item.get(field, ""):
+                raise _InvalidOutput("Primary fields check failed. Request url: %s. "
+                    "Empty field: %s" % (request_url, field))
+
+def check_global_options(spider_settings, result, request_url):
+    obligate_fields = set(spider_settings.getlist('TESTMASTER_OBLIGATE_ITEM_FIELDS', []))
+    primary_fields = set(spider_settings.getlist('TESTMASTER_PRIMARY_ITEM_FIELDS', []))
+    items = map(lambda x: x["data"], filter(lambda res: res["type"] == "item", result))
+    basic_items_check(items, obligate_fields, primary_fields, request_url)
+
+
+def check_global_rules(spider_settings, result, request_url):
+    path_to_rules = spider_settings.get('TESTMASTER_PATH_TO_RULES_FILE', None)
+    if path_to_rules:
+        try:
+            module = importlib.import_module(path_to_rules.replace('/', '.'))
+        except Exception as e:
+            print(e)
+            print("Rules file specified in project/spider "
+                "settings does not exist.")
+        if hasattr(module, "ItemRules"):
+            itemclass = module.ItemRules()
+            check_item_rules(itemclass, result, request_url)
+        if hasattr(module, "RequestRules"):
+            reqclass = module.RequestRules()
+            check_req_rules(reqclass, result, request_url)
+
+def check_local_options(config, result, request_url):
+    try:
+        obligate_fields = set(config.OBLIGATE_ITEM_FIELDS)
+    except AttributeError:
+        obligate_fields = set()
+    try:
+        primary_fields = set(config.PRIMARY_ITEM_FIELDS)
+    except AttributeError:
+        primary_fields = set()
+    items = map(lambda x: x["data"], filter(lambda res: res["type"] == "item", result))
+    basic_items_check(items, obligate_fields, primary_fields, request_url)
+
+def check_local_rules(config, result, request_url):
+    try:
+        itemclass = config.ItemRules()
+        check_item_rules(itemclass, result, request_url)
+    except AttributeError:
+        pass
+    try:
+        reqclass = config.RequestRules()
+        check_req_rules(reqclass, result, request_url)
+    except AttributeError:
+        pass    
+
+def validate_results(test_dir, spider_settings, result, request_url):
+    config_path = os.path.join(test_dir, 'config.py')
+    if not os.path.exists(config_path):
+        check_global_options(spider_settings, result, request_url)
+        check_global_rules(spider_settings, result, request_url)
+    else:
+        config = get_cb_settings(test_dir)
+        check_local_options(config, result, request_url)
+        check_local_rules(config, result, request_url)
+        check_global_options(spider_settings, result, request_url)
+        check_global_rules(spider_settings, result, request_url)
+
+def check_item_rules(itemclass, result, request_url):
+    itemclass_attrs = [(name, getattr(itemclass, name)) for name in dir(itemclass) \
+         if not name.startswith('__')]
+    item_rules = filter(lambda entry: callable(entry[1]), itemclass_attrs)
+    items = map(lambda x: x["data"], filter(lambda res: res["type"] == "item", result))
+    for rule_func in item_rules:
+        for item in items:
+            try:
+                rule_func[1](item)
+            except AssertionError:
+                raise _InvalidOutput("An item produced by the request with url %s has "
+                    "failed the rule %s" % (request_url, rule_func[0]))
+
+def check_req_rules(reqclass, result, request_url):
+    reqclass_attrs = [(name, getattr(reqclass, name)) for name in dir(reqclass) \
+        if not name.startswith('__')]
+    req_rules = filter(lambda entry: callable(entry[1]), reqclass_attrs)
+    requests = map(lambda x: x["data"], filter(lambda res: res["type"] == "request", result))
+    for rule_func in req_rules:
+        for req in requests:
+            try:
+                rule_func[1](req)
+            except AssertionError:
+                raise _InvalidOutput("A request produced by the request with url %s has "
+                    "failed the rule %s" % (request_url, rule_func[0]))
+
+def get_num_objects(result, _type):
+    return len(list(filter(lambda entry: entry['type'] == _type, result)))
+
+def write_json(test_dir, request, result, fixture_num):
+    fixture = {}
+    fixture["request"] = request
+    fixture["num_items"] = get_num_objects(result, "item")
+    fixture["num_requests"] = get_num_objects(result, "request")
+    json_path = os.path.join(test_dir, 'view.json')
+    if os.path.exists(json_path):
+        with open(json_path, 'r') as f:
+            extant_fixtures = json.load(f)
+        extant_fixtures[str(fixture_num)] = fixture
+
+        with open(json_path, 'w') as f:
+            json.dump(extant_fixtures, f)
+    else:
+        new_fixtures = {"1": fixture}
+        with open (json_path, 'w') as f:
+            json.dump(new_fixtures, f)
+
+
+# The requests involved in the current fixtures will be written here, in JSON format
+CURRENT_TESTS = [
+    #{
+        # "url": "https://examplewebsite011235811.com",  
+        # "headers": {"referer":"...", "content_type": "..."},
+        # "cookies": {},
+        # "method": "POST",
+        # "data": {"x": "y"}, 
+        # "type": "form",
+        # "meta": {"x": "y"},
+        # "fixture_num": 1
+    # },
+    # {
+        # ...
+    # }
+]
+
+
+# Simple and efficient regex! 
+# For a second I was considering loading in module = rookie thinking
+def get_callbacks(spider_path):
+    with open(spider_path, 'r') as spider_file:
+        text = spider_file.read()
+        callbacks = list(filter(lambda match: not(match.startswith('__') or \
+            match == 'start_requests'), re.findall(r"def\s+(\w+)\([^\n]+response", text)))
+        return callbacks
+
+def write_config(path):
+    config_file = os.path.join(path, 'config.py')
+    config_src = os.path.dirname(__file__) + '/config_doc.py'
+    shutil.copyfile(config_src, config_file)
+
+def get_homepage_cookies(spider, mode=""):
+    import requests
+    user_agent = spider.settings.get('USER_AGENT')
+    if len(spider.start_urls) == 1:
+        inferred_homepage = spider.start_urls[0]
+        r = requests.get(inferred_homepage, headers={"User-Agent": user_agent})
+        print("HOMEPAGE STATUS CODE: %s" % str(r.status_code))
+        return r.cookies.get_dict()
+    else:
+        if mode == "parse":
+            raise UsageError("Homepage option selected but. "
+            "can't determine homepage from start_urls %s" % spider.name, 
+            print_help=False)
+        print("Couldn't determine homepage to collect cookies from")
+        return {}
+
+def get_config_requests(test_dir, spider):
+    curr_fixture_count = get_num_fixtures(test_dir)
+    config = get_cb_settings(test_dir)
+    try:
+        requests_to_add = config.REQUESTS_TO_ADD
+    except AttributeError:
+        return []
+    
+    defaults = { 
+        'method': 'GET', 'headers': None, 'body': None, 'cookies': None, 
+        'meta': None, '_encoding': 'utf-8', 'priority': 0, 'dont_filter': False, 
+        'errback': None, 'flags': None, 'cb_kwargs': None
+    }
+    complete_requests = []
+    for req in requests_to_add:
+        if curr_fixture_count < 10:
+            for key, val in defaults.items():
+                req[key] = req.get(key, val)
+            req['callback'] = _get_method(spider, test_dir.split('/')[-1])
+            req['meta']['_update'] = 1
+            req['meta']['_fixture'] = curr_fixture_count + 1
+            complete_requests.append(req)
+            curr_fixture_count += 1
+        else:
+            break
+    complete_requests = [request_from_dict(req) for req in complete_requests]
+    return complete_requests
+
+def trigger_requests(crawler_process, spider, requests, test_dir=""):
+    total_requests = requests.copy()
+    if test_dir:
+        total_requests += get_config_requests(test_dir, spider)
+    else:
+        examined_dirs = []
+        for req in requests:
+            test_dir = req.meta['_fixture_dir']
+            if test_dir not in examined_dirs:
+                total_requests += get_config_requests(test_dir, spider)  
+                examined_dirs.append(test_dir)
+    spider_loader = crawler_process.spider_loader
+    spidercls = spider_loader.load(spider.name)
+    spidercls.start_requests = lambda s: total_requests
+    crawler_process.crawl(spidercls)
+    crawler_process.start()
+
+
+# This and the next function are extremely similar to functions found in
+# scrapy/utils/reqser.py. In fact, this 'request_to_dict' function is unchanged.
+# What I changed was the helper function '_find_method', replacing "if func_self
+# is obj:" with "if type(func_self) is type(obj):". This is because I found that
+# for the update command, the callback that became attached to the request via
+# the call of request_from_dict in cli.py was bound to a spider instance
+# different from the spider instance that I started running via the above
+# function, and so request_to_dict in process_spider_input was failing
+# (specifically, func_self (spider instance 1) was registering as different from
+# obj (spider instance 2)). Checking more simply that both are instances of the
+# same spider class seems to solve the problem without breaking anything!
+
+
+def request_to_dict(request, spider=None):
+    """Convert Request object to a dict.
+
+    If a spider is given, it will try to find out the name of the spider method
+    used in the callback and store that as the callback.
+    """
+    cb = request.callback
+    if callable(cb):
+        cb = _find_method(spider, cb)
+    eb = request.errback
+    if callable(eb):
+        eb = _find_method(spider, eb)
+    d = {
+        'url': to_unicode(request.url),  # urls should be safe (safe_string_url)
+        'callback': cb,
+        'errback': eb,
+        'method': request.method,
+        'headers': dict(request.headers),
+        'body': request.body,
+        'cookies': request.cookies,
+        'meta': request.meta,
+        '_encoding': request._encoding,
+        'priority': request.priority,
+        'dont_filter': request.dont_filter,
+        'flags': request.flags,
+        'cb_kwargs': request.cb_kwargs,
+    }
+    if type(request) is not Request:
+        d['_class'] = request.__module__ + '.' + request.__class__.__name__
+    return d
+
+def _find_method(obj, func):
+    if obj:
+        try:
+            func_self = func.__self__
+        except AttributeError:  # func has no __self__
+            pass
+        else:
+            if type(func_self) is type(obj):
+                members = inspect.getmembers(obj, predicate=inspect.ismethod)
+                for name, obj_func in members:
+                    # We need to use __func__ to access the original
+                    # function object because instance method objects
+                    # are generated each time attribute is retrieved from
+                    # instance.
+                    #
+                    # Reference: The standard type hierarchy
+                    # https://docs.python.org/3/reference/datamodel.html
+                    if obj_func.__func__ is func.__func__:
+                        return name
+            else:
+                print(func_self, "func_self is not obj!!!!!!")
+    raise ValueError("Function %s is not a method of: %s" % (func, obj))

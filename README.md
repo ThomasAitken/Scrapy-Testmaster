@@ -1,6 +1,6 @@
 # Scrapy Testmaster
 
-[![PyPI Version]
+[![PyPI Version](https://img.shields.io/pypi/v/scrapy-testmaster.svg?color=blue)](https://pypi.org/project/scrapy-testmaster)
 
 ## Overview
 
@@ -467,4 +467,15 @@ Ironically, the automatic test suite for this library is relatively sparse. In t
 ## Other
 My library has fixed an issue with the `update` command that exists in the current version of Scrapy Autounit: https://github.com/scrapinghub/scrapy-autounit/issues/73. Line in cli.py `response = response_cls(request=data['request'], **data['response'])` which should be `response = response_cls(request=request, **data['response'])`.
 
+I noticed that my library has a bug which I inherited from Scrapy Autounit. In
+`parse_object` in *utils.py*, we see the following, which goes wrong when
+`type(_object) is tuple` because tuples don't support item assignment.
+```
+elif isinstance(_object, (list, tuple)):
+    for i, v in enumerate(_object):
+        _object[i] = parse_object(v, spider, cb_settings)
+```
 
+I would fix this except that I have to understand whether _object needs to be a
+tuple or not in the cases when it is. It would be easiest to just add one extra
+line to convert _object to a list, but I don't know if that would break anything.

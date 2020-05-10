@@ -176,8 +176,6 @@ def parse_object(_object, spider, cb_settings):
         for k, v in _object.items():
             _object[k] = parse_object(v, spider, cb_settings)
     elif isinstance(_object, (list, tuple)):
-        if isinstance(_object, tuple):
-            _object = list(_object)
         for i, v in enumerate(_object):
             _object[i] = parse_object(v, spider, cb_settings)
     return _object

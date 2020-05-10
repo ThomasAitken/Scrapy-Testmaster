@@ -4,7 +4,7 @@
 
 ## Overview
 
-Scrapy-Testmaster is an automatic test-generation, test-execution and general debugging tool for Scrapy spiders.
+Scrapy TestMaster is an automatic test-generation, test-execution and general debugging tool for Scrapy spiders.
 
 As far as I am aware, Scrapy TestMaster is the most comprehensive tool yet for the automated debugging and testing of Scrapy spiders. It offers a system of crawler-validation that is robust against both changes to your own code and to changes in the targeted webpages. Its capabilities include the following: 
 - Testing your Scrapy functions against specific requests on the fly, using an extended version of the Scrapy parse command (https://docs.scrapy.org/en/latest/topics/commands.html#std-command-parse) that can take any number of urls ([*testmaster parse*](#testmaster-parse)).

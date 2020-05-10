@@ -13,7 +13,7 @@ class ItemRules(object):
         assert(item["name"]),"Fail"
 
 class RequestRules(object):
-    def basic_rule(self, item):
+    def basic_rule(self, request):
         assert("meta" in request),"Fail"
 '''
 

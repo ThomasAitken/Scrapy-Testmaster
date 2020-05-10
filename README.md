@@ -20,17 +20,16 @@ Apart from the wider range of capabilities, the feature I most want to emphasise
 
 For more info on how to use this library, see [*What is the Use Case for this Library*](#What-is-the-Use-Case-for-this-Library).  
 ---  
-
 ## Acknowledgements
 The structure of my project is strongly influenced by Scrapy Autounit, and some of the functions from this library exist in my library unchanged. (I've decided to not make scrapy-autounit a dependency of this project, however.) The `scrapy parse` command is, of course, another major influence, the code for which bears a very strong resemblance to `testmaster parse`. Read the License for more.  
----
 
+---
 ## Installation
 ```
 pip install scrapy_testmaster
 ```
----
 
+---
 ## What it looks like
 This is what your project will look like after calling `scrapy crawl` or `testmaster parse` with TestMasterMiddleware enabled.
 ```
@@ -62,8 +61,8 @@ my_project
 ```
 
 This is equivalent to Scrapy Autounit, but with two extra files, both small. Analogous to the `settings.py` module in every Scrapy project, `config.py` is for specifying the custom logic and rules that your test-results need to pass for the given callback directory in which the file resides. It also allows one to write down requests to be tested the next time you execute `testmaster parse`. `view.json` is simply a convenience for representing what's currently in your fixtures: it is an ordered list of the requests that generated the current fixtures for the callback in question, plus some basic summary stats. It is updated if the fixtures are changed.  
----
 
+---
 ## Usage
 ### Basic
 To begin validating output or generating tests with `testmaster parse` or `scrapy crawl`, set `TESTMASTER_ENABLED = True` in `settings.py`, then add the spider middleware to your `SPIDER_MIDDLEWARES` setting (no specific order required):  
@@ -158,8 +157,8 @@ If the results of the request triggered by this command pass your custom rules, 
 The fixtures are essentially just test cases for your spider. Exactly as in Scrapy Autounit (https://github.com/scrapinghub/scrapy-autounit), the *fixture%d.bin* files store in binary format a big JSON dict containing the spider name that generated the fixture, the full details of the request, the entire downloaded response body, the result (i.e. a list of items and/or requests corresponding to the generator produced by the callback code), details about the middlewares in play, the spider settings, the spider args, and the Python version. This library offers you two ways of using these fixtures to run your tests, once they've been written: 
 1. Run a static test which parses the response using your updated code for the same callback (to check that you have not broken anything by comparing against the results in the fixture).
 2. Run a dynamic test which first downloads a new response using the request info encoded in the fixture, and then parses the response using your code for the callback (to check that the website has not changed).  
----
 
+---
 ### Project/Spider Settings
 #### N.B. 
 You will notice that there is heavy overlap here with the settings in config.py. So you can set custom validation rules at any level, although any settings specified to a contrary, non-default value in a `config.py` file will take precedence for that particular callback.  
@@ -449,20 +448,20 @@ If you have used the 'extra path' setting to set up two or more classes of test 
 
 ### Brief Note on the Role of `python -m unittest...` Regular Commands
 Calling `python -m unittest ...` will not evaluate your test cases against the custom rules you have specified in `settings.py` and/or any relevant `config.py` files. These unittest calls are only for checking that a change to your code hasn't broken anything. Your test cases are meant to be solid examples of desirable output; as previously described, they will only be written if they pass the custom rules you specified when you ran `testmaster parse`, `testmaster update` with `--dynamic` or `--new`, or `scrapy crawl`. If you forgot to specify some custom rules to check your results against before running one of these commands, then update these to the desired values before running `testmaster update` statically to check the responses you already downloaded against your new logic.  
----
 
+---
 ## What is the Use Case for this Library?
 The idea behind this project is to provide a set of robust, effective testing and debugging tools for large Scrapy codebases. Here is how I see this library being used in this high-maintenance/enterprise context:
 
 As the developer is programming the spider, she debugs her code, and refines her selectors, by calling `testmaster parse` on various urls. She thereby automatically generates tests/fixtures for every callback each time these requests lead to results that pass any custom rules she has set down (so the debugging and test-generation process is neatly entwined). She can then supplement these fixtures, if she requires, by further calls of `testmaster parse`. Alternatively, if she is satisfied with her code, she can just run `scrapy crawl` to generate a set of fresh fixtures. With these fixtures in place, she can feel secure with every change she makes to her code by running the appropriate tests using `python -m unittest ...`. Once this initial development phase is all done --- she has a number of solid test-cases in place for each callback, and her spider code is working --- she can now boost the likelihood of continuous, effective deployment of her spider by running `update --dynamic ...` on appropriate callbacks at regular intervals to re-download the relevant test pages. By regularly re-downloading the same requests and testing the output, she will remain alert to any changes to the target website which affect the viability of the code.
 
 Of course, the casual Scrapy user will not be concerned with running regular dynamic test updates, but there is no penalty for using only a subset of the capabilities!  
----
 
+---
 ## On the Tests for this Library
 Ironically, the automatic test suite for this library is relatively sparse. In terms of the tests that can be found in this project, I adapted the tests that were part of the Scrapy Autounit project and added a couple more. This is not to say that it wasn't well-tested; each component was tested as it was completed, but tested via direct execution, with the testcases being projects that belong to a proprietary codebase. This was by far the easiest way to test a project like this, because I was able to test the correctness of the logic of all the helper commands by checking for the higher-level correctness of each of the commands under different parameters/settings. But obviously it would be very welcome if someone were to write up a stronger automatic test suite. Personally, I'm not going to put any effort into this issue; it is for the world to continue my work on this library, should the world desire.  
----
 
+---
 ## Other
 My library has fixed an issue with the `update` command that exists in the current version of Scrapy Autounit: https://github.com/scrapinghub/scrapy-autounit/issues/73. Line in cli.py `response = response_cls(request=data['request'], **data['response'])` which should be `response = response_cls(request=request, **data['response'])`.
 

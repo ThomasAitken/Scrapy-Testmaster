@@ -234,7 +234,7 @@ def clean_headers(headers, spider_settings, cb_settings, mode=""):
         return decoded
 
 
-def clean_item(item, settings, cb_settings):
+def clean_item(item, spider_settings, cb_settings):
     skipped_global = spider_settings.get('TESTMASTER_SKIPPED_FIELDS', default=[])
     try:
         skipped_local = cb_settings.REQUEST_SKIPPED_FIELDS

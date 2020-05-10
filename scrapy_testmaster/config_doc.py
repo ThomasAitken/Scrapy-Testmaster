@@ -51,6 +51,7 @@ PRIMARY_ITEM_FIELDS = []
 '''If a field appears in PRIMARY_ITEM_FIELDS and OBLIGATE_ITEM_FIELDS, the former
 takes precedence.'''
 
+
 # Now you can specify any additional requests involving a dynamic download, similar
 # to the "scrapy parse" command, but with extra options! These requests will be
 # triggered (with their data potentially becoming new fixtures) the next time

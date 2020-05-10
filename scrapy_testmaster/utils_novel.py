@@ -159,11 +159,14 @@ def check_global_rules(spider_settings, result, request_url):
 def check_local_options(config, result, request_url):
     try:
         obligate_fields = set(config.OBLIGATE_ITEM_FIELDS)
-        primary_fields = set(config.PRIMARY_ITEM_FIELDS)
-        items = map(lambda x: x["data"], filter(lambda res: res["type"] == "item", result))
-        basic_items_check(items, obligate_fields, primary_fields, request_url)
     except AttributeError:
-        pass
+        obligate_fields = set()
+    try:
+        primary_fields = set(config.PRIMARY_ITEM_FIELDS)
+    except AttributeError:
+        primary_fields = set()
+    items = map(lambda x: x["data"], filter(lambda res: res["type"] == "item", result))
+    basic_items_check(items, obligate_fields, primary_fields, request_url)
 
 def check_local_rules(config, result, request_url):
     try:
@@ -179,7 +182,6 @@ def check_local_rules(config, result, request_url):
 
 def validate_results(test_dir, spider_settings, result, request_url):
     config_path = os.path.join(test_dir, 'config.py')
-
     if not os.path.exists(config_path):
         check_global_options(spider_settings, result, request_url)
         check_global_rules(spider_settings, result, request_url)
@@ -226,7 +228,6 @@ def write_json(test_dir, request, result, fixture_num):
     fixture["num_requests"] = get_num_objects(result, "request")
     json_path = os.path.join(test_dir, 'view.json')
     if os.path.exists(json_path):
-        print(fixture)
         with open(json_path, 'r') as f:
             extant_fixtures = json.load(f)
         extant_fixtures[str(fixture_num)] = fixture

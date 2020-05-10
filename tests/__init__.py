@@ -1,1 +1,1 @@
-from .test_middleware import DelAttrAutounitMiddleware, DelObjectsAutounitMiddleware
+from .test_middleware import DelAttrTestMasterMiddleware, DelObjectsTestMasterMiddleware

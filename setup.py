@@ -5,9 +5,9 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name='scrapy-testmaster',
-    version='0.1',
-    author='',
-    author_email='',
+    version='0.0.1',
+    author='Thomas Aitken',
+    author_email='tclaitken@gmail.com',
     description='Automatic unit test generation for Scrapy.',
     long_description=long_description,
     long_description_content_type='text/markdown',

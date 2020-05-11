@@ -266,7 +266,7 @@ Example of request format with special requests:
         "meta": {"x": "y"}
     },
     {
-    	"url": "https://fe7vw05z-splash.scrapinghub.com/render.html", 
+    	"url": "https://...-splash.scrapinghub.com/render.html", 
 	"method": "POST", 
 	"headers": {...}, 
 	"body": "{...}", 

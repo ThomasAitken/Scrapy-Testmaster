@@ -21,7 +21,7 @@ def get_cb_settings(test_dir):
     spec.loader.exec_module(config)
     return config
 
-def get_fixture_paths(spider_test_dir, spider_path, extra_path):
+def get_test_paths(spider_test_dir, spider_path, extra_path, fixture=False):
     poss_cb_names = get_callbacks(spider_path)
     dir_list = os.listdir(spider_test_dir) 
     paths = []
@@ -32,14 +32,16 @@ def get_fixture_paths(spider_test_dir, spider_path, extra_path):
             dir_list = os.listdir(diff_path)
             cb_list = filter(lambda d: '.' not in d, dir_list)
             for cb in cb_list:
-                cb_path = os.path.join(diff_path, cb)
-                target = os.path.join(cb_path, '*.bin')
+                target = os.path.join(diff_path, cb)
+                if fixture:
+                    target = os.path.join(target, '*.bin')
                 paths += glob(target)
     else:
         cb_list = filter(lambda d: '.' not in d, dir_list)
         for cb in cb_list:
-            cb_path = os.path.join(spider_test_dir, cb)
-            target = os.path.join(cb_path, '*.bin')
+            target = os.path.join(spider_test_dir, cb)
+            if fixture:
+                target = os.path.join(target, '*.bin')
             paths += glob(target)
         
     return paths
@@ -288,7 +290,7 @@ def get_homepage_cookies(spider, mode=""):
         print("Couldn't determine homepage to collect cookies from")
         return {}
 
-def get_config_requests(test_dir, spider):
+def get_config_requests(test_dir, spider, max_fixtures):
     curr_fixture_count = get_num_fixtures(test_dir)
     config = get_cb_settings(test_dir)
     try:
@@ -303,7 +305,7 @@ def get_config_requests(test_dir, spider):
     }
     complete_requests = []
     for req in requests_to_add:
-        if curr_fixture_count < 10:
+        if curr_fixture_count < max_fixtures:
             for key, val in defaults.items():
                 req[key] = req.get(key, val)
             req['callback'] = _get_method(spider, test_dir.split('/')[-1])
@@ -316,20 +318,25 @@ def get_config_requests(test_dir, spider):
     complete_requests = [request_from_dict(req) for req in complete_requests]
     return complete_requests
 
-def trigger_requests(crawler_process, spider, requests, test_dir=""):
-    total_requests = requests.copy()
-    if test_dir:
-        total_requests += get_config_requests(test_dir, spider)
-    else:
-        examined_dirs = []
-        for req in requests:
-            test_dir = req.meta['_fixture_dir']
-            if test_dir not in examined_dirs:
-                total_requests += get_config_requests(test_dir, spider)  
-                examined_dirs.append(test_dir)
+def get_reqs_multiple(test_paths, spider):
+    requests = []
+    for path in test_paths:
+        requests += get_reqs_to_add(path, spider)
+    return requests
+
+def get_reqs_to_add(test_dir, spider):
+    global_max_fixtures = spider.settings.getint(
+        'TESTMASTER_MAX_FIXTURES_PER_CALLBACK',
+        default=10
+    )
+    cb_settings = get_cb_settings(test_dir)
+    max_fixtures = update_max_fixtures(cb_settings, global_max_fixtures)
+    return get_config_requests(test_dir, spider, max_fixtures)
+
+def trigger_requests(crawler_process, spider, requests):
     spider_loader = crawler_process.spider_loader
     spidercls = spider_loader.load(spider.name)
-    spidercls.start_requests = lambda s: total_requests
+    spidercls.start_requests = lambda s: requests
     crawler_process.crawl(spidercls)
     crawler_process.start()
 

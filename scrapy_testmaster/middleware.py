@@ -190,11 +190,12 @@ class TestMasterMiddleware:
             clean_splash(_request['meta']['splash']['splash_headers'], spider.settings, \
                 cb_settings)
 
+        validate_results(test_dir, spider.settings, data['result'], request['url'])
+
         if callback_counter < max_fixtures:
             index = callback_counter + 1
             if response.meta.get('_fixture', None):
                 index = response.meta['_fixture']
-            validate_results(test_dir, spider.settings, data['result'], request['url'])
             add_sample(index, test_dir, test_name, data)
             write_json(test_dir, _request, data['result'], index)
             
@@ -205,7 +206,6 @@ class TestMasterMiddleware:
                 r = random.randint(0, callback_counter)
                 if r < max_fixtures:
                     index = r + 1
-                    validate_results(test_dir, spider.settings, data['result'], request['url'])
                     add_sample(index, test_dir, test_name, data)
                     write_json(test_dir, _request, data['result'], index)
                 

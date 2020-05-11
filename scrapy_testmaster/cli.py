@@ -28,10 +28,12 @@ from scrapy_testmaster.utils import (
 from scrapy_testmaster.utils_novel import (
     get_callbacks,
     get_cb_settings,
-    get_fixture_paths,
+    get_test_paths,
     write_config,
     get_homepage_cookies,
     trigger_requests,
+    get_reqs_to_add,
+    get_reqs_multiple,
     validate_results
 )
 from .parse import (
@@ -178,11 +180,12 @@ class CommandLine:
         elif not self.fixture and self.callback:
             target = os.path.join(self.callback_dir, "*.bin")
             to_update = glob(target)
+        # == if not self.callback
         else:
             spider_path = os.path.join(self.project_dir, \
                 os.path.join(os.path.basename(self.project_dir), 'spiders/' + \
                 self.spider + '.py'))
-            to_update = get_fixture_paths(self.spider_dir, spider_path, self.extra_path)
+            to_update = get_test_paths(self.spider_dir, spider_path, self.extra_path, True)
 
         req_list = []
     
@@ -190,7 +193,7 @@ class CommandLine:
         i = 0
         for path in to_update:
             data, _, spider, _ = prepare_callback_replay(path)
-            if self.dynamic or self.new and i == 0:
+            if (self.dynamic or self.new) and i == 0:
                 homepage_cookies = get_homepage_cookies(spider)
                 i += 1
 
@@ -202,7 +205,6 @@ class CommandLine:
             if self.dynamic:
                 request.meta['_update'] = 1
                 request.meta['_fixture'] = fixture_index
-                request.meta['_fixture_dir'] = fixture_dir
                 req_list.append(request)
             else:
                 response_cls = auto_import(
@@ -223,9 +225,16 @@ class CommandLine:
         if self.dynamic or self.new:
             crawler_process = CrawlerProcess(self.settings)
             if self.callback:
-                trigger_requests(crawler_process, spider, req_list, self.callback_dir)
-            else:
+                # add any requests specified in REQUESTS_TO_ADD in config.py
+                req_list += get_reqs_to_add(self.callback_dir, spider)
                 trigger_requests(crawler_process, spider, req_list)
+            else:
+                # finds all paths to all config.py files for the spider
+                # potentially adding a whole lot of requests from the REQUESTS_TO_ADD fields in these
+                to_add = get_test_paths(self.spider_dir, spider_path, self.extra_path)
+                req_list += get_reqs_multiple(to_add, spider)
+                trigger_requests(crawler_process, spider, req_list)
+                
 
     def establish(self):
         did_something = False

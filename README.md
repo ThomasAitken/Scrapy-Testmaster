@@ -152,6 +152,7 @@ If the results of the request triggered by this command pass your custom rules, 
 ### Important Caveats
 * As long as **TESTMASTER_ENABLED** is on, each time you run a spider using `scrapy crawl`, existing tests/fixtures will be over-written, if the results of the requests being made pass your custom rules. However, if you run a specific callback using `testmaster parse`, this over-writing will not apply - fixtures will be added (within the limit you have set by **TESTMASTER_MAX_FIXTURES_PER_CALLBACK**).
 * There are a few lines of code in this library that rely on the assumption that you haven't named your spider file differently from the name attribute of the spider itself. So keep these names aligned if you want assurance that everything will always work! (If you always use `scrapy genspider` and don't later edit the file name or spider name, there will, of course, be no problem.)
+* Running the *scrapy parse* command (as opposed to the *testmaster parse* command) with the TestMasterMiddleware enabled will not work properly - the middleware will try and fail to interact with the responses.
 * Just in case this happens to be relevant, using as keys in your request.meta any of the strings '_parse', '_update' or '_fixture' may lead to unexpected behaviour with the middleware enabled.  
 
 ### What's the deal with the fixtures?

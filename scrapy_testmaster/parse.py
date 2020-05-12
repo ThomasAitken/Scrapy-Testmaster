@@ -176,6 +176,8 @@ def prepare_request(spider, request, args):
         cb = response.meta['_callback']
         if not cb:
             print("UNEXPECTED FATAL ERROR")
+        #obsolete
+        del response.meta['_callback']
 
         # parse items and requests
         depth = response.meta['_depth']

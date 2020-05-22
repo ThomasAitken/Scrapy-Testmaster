@@ -57,7 +57,7 @@ takes precedence.'''
 # triggered (with their data potentially becoming new fixtures) the next time
 # you call "testmaster update" specifying this callback. 
 
-# Format = Python dicts, not JSON (i.e. use "None" & "True" not null and true); 
+# Format = Python dicts, not JSON (i.e. use None & True not null and true); 
 # field "_class" can be omitted for standard requests
 REQUESTS_TO_ADD = [
     #{

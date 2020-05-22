@@ -197,10 +197,10 @@ def validate_results(test_dir, spider_settings, result, request_url):
 def check_item_rules(itemclass, result, request_url):
     itemclass_attrs = [(name, getattr(itemclass, name)) for name in dir(itemclass) \
          if not name.startswith('__')]
-    item_rules = filter(lambda entry: callable(entry[1]), itemclass_attrs)
+    item_rules = list(filter(lambda entry: callable(entry[1]), itemclass_attrs))
     items = map(lambda x: x["data"], filter(lambda res: res["type"] == "item", result))
-    for rule_func in item_rules:
-        for item in items:
+    for item in items:
+        for rule_func in item_rules:
             try:
                 rule_func[1](item)
             except AssertionError:
@@ -210,10 +210,10 @@ def check_item_rules(itemclass, result, request_url):
 def check_req_rules(reqclass, result, request_url):
     reqclass_attrs = [(name, getattr(reqclass, name)) for name in dir(reqclass) \
         if not name.startswith('__')]
-    req_rules = filter(lambda entry: callable(entry[1]), reqclass_attrs)
+    req_rules = list(filter(lambda entry: callable(entry[1]), reqclass_attrs))
     requests = map(lambda x: x["data"], filter(lambda res: res["type"] == "request", result))
-    for rule_func in req_rules:
-        for req in requests:
+    for req in requests:
+        for rule_func in req_rules:
             try:
                 rule_func[1](req)
             except AssertionError:

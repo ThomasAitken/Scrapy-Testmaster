@@ -172,12 +172,15 @@ def prepare_request(spider, request, args):
         if not first_response:
             first_response = response
 
-        # determine real callback
+        # real callback
         cb = response.meta['_callback']
         if not cb:
             print("UNEXPECTED FATAL ERROR")
-        #obsolete
+        #surplus to requirements
         del response.meta['_callback']
+        #restoring this to the 'proper' value because spider logic may rely on
+        #the accuracy of this attribute
+        response.request.callback = cb
 
         # parse items and requests
         depth = response.meta['_depth']

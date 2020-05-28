@@ -163,7 +163,8 @@ class TestMasterMiddleware:
             if k not in ('crawler', 'settings', 'start_urls')
         }
         temp_rules = spider_attr_out.get('_rules', [])
-        spider_attr_out['_rules'] = [repr(rule) for rule in temp_rules]
+        if temp_rules:
+            spider_attr_out['_rules'] = [repr(rule) for rule in temp_rules]
 
         data = {
             'spider_name': spider.name,

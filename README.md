@@ -466,6 +466,50 @@ Of course, the casual Scrapy user will not be concerned with running regular dyn
 Ironically, the automatic test suite for this library is relatively sparse. In terms of the tests that can be found in this project, I adapted the tests that were part of the Scrapy Autounit project and added a couple more. This is not to say that it wasn't well-tested; each component was tested as it was completed, but tested via direct execution, with the testcases being projects that belong to a proprietary codebase. This was by far the easiest way to test a project like this, because I was able to test the correctness of the logic of all the helper commands by checking for the higher-level correctness of each of the commands under different parameters/settings. But obviously it would be very welcome if someone were to write up a stronger automatic test suite. Personally, I'm not going to put any effort into this issue; it is for the world to continue my work on this library, should the world desire.  
 
 ---
+## Architecture/Logic
+I will use the `parse` command to illustrate how this package does its automatic
+validation and unittest generation with the middlewares switched on. The logic
+involved in the `parse` command is more complicated than the others, so if you
+can understand this, you can understand everything. Hopefully,
+this will be useful for anyone who desires to fix any bugs in this library.
+
+1. After the command-line args are parsed, the `parse` command fires up the
+   Scrapy engine to run the specified/inferred spider with the one-off requests specified.
+2. Via the logic in *parse.py*, a one-off `start_requests` function is kicked
+   off which returns the list of requests initially specified in *parse.py*
+   (request pre-processing happens via `prepare_request` in *parse.py*, which
+   sets a custom callback for each request).
+3. The requests may then undergo further processing via any
+   active request-processing subroutines in any active *Downloader Middlewares* in your project (just as if you had generated these requests via a standard
+   crawl). 
+4. A response is downloaded and the response is processed as usual by the
+   various *Downloader Middlewares* components which deal with responses (just
+   as if you had generated the response via a standard crawl).
+5. The response is fed to the `process_spider_input` function in
+   `TestMasterMiddleware` (a standard spider middleware). This function prepares some of the data necessary to
+   create the testcase file and places it in the response meta object. 
+6. The response arrives at the `callback` function embedded in the
+   `prepare_request` function in *parse.py*, which is playing the role of the
+   spider callback. The response is parsed inside this function by the correct
+   callback and the processed results are stored inside the response meta object.
+7. The response and result (but in this case only the outputted requests are
+   included in the result and not
+   the items, because of a quirk with the `parse` logic) arrive at the `process_spider_output` function in
+   `TestMasterMiddleware`. The total results, items included, are obtained from the
+   response meta object where they were stored as described in (6.). These results are validated by the
+   various custom settings and rules you have established, whether at the project-level
+   or at the config-specific level, or a combination of both. 
+8. [Still within `process_spider_output`] If the results are
+   valid, and there is room in the fixtures, the fixture is written and
+   *view.json* is updated. If not, an exception is raised and the next request/response
+   is dealt with.
+9. Within *parse.py*, global variables have been storing the collected results
+   as you have processed the 1 or more requests you kicked off initially. When
+   there are no more requests to be triggered, these results are printed
+   together (regardless of the failure or success of the results according to
+   your validation rules).    
+
+---
 ## Other
 My library has fixed an issue with the `update` command that exists in the current version of Scrapy Autounit: https://github.com/scrapinghub/scrapy-autounit/issues/73. Line in cli.py `response = response_cls(request=data['request'], **data['response'])` which should be `response = response_cls(request=request, **data['response'])`.
 

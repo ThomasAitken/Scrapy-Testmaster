@@ -6,10 +6,10 @@
 
 Scrapy TestMaster is an automatic test-generation, test-execution and general debugging tool for Scrapy spiders.
 
-As far as I am aware, Scrapy TestMaster is the most comprehensive tool yet for the automated debugging and testing of Scrapy spiders. It offers a system of crawler-validation that is robust against both changes to your own code and to changes in the targeted webpages. Its capabilities include the following: 
+As far as I am aware, Scrapy TestMaster is the most comprehensive tool yet for the automated debugging and testing of Scrapy spiders. It represents a strict extension of the capabilities of its most influential predecessor, Scrapy Autounit (https://github.com/scrapinghub/scrapy-autounit), with further features that make it more useful for both on-the-fly debugging and more robust monitoring of the kind that might be required in an enterprise context. Whereas other Scrapy testing libraries are useful only for crawler-validation subsequent to changes in the crawler code, this library offers further tools to test for changes in the targeted webpages themselves. More precisely, its capabilities include the following: 
 - Testing your Scrapy functions against specific requests on the fly, using an extended version of the Scrapy parse command (https://docs.scrapy.org/en/latest/topics/commands.html#std-command-parse) that can take any number of urls ([*testmaster parse*](#testmaster-parse)).
 - Using the above command to automatically generate testcases and unit tests.
-- Generating automatic testcases and unit tests as you run your spider via `scrapy crawl` (exactly like Scrapy Autounit (https://github.com/scrapinghub/scrapy-autounit)).
+- Generating automatic testcases and unit tests as you run your spider via `scrapy crawl` (exactly like Scrapy Autounit).
 - Merging the debugging and test-generation processes by designing meta rules to determine whether a fixture (testcase) should be written based on the quality of the parsed results.
 - Specifying requests in a config file to be downloaded and evaluated upon the next execution (allows FormRequests, requests with cookies, requests using proxies, etc).
 - Designing custom testing/validation rules down to a callback-specific level so as to check the correctness of output in a very fine-grained manner.

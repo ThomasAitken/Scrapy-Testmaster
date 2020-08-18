@@ -195,7 +195,7 @@ class TestMasterMiddleware:
 
         validate_results(test_dir, spider.settings, data['result'], request['url'])
 
-        if callback_counter < max_fixtures:
+        if callback_counter < max_fixtures or response.meta.get('_update', None):
             index = callback_counter + 1
             if response.meta.get('_fixture', None):
                 index = response.meta['_fixture']

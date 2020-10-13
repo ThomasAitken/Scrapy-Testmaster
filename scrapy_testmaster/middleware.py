@@ -95,9 +95,7 @@ class TestMasterMiddleware:
 
     def process_spider_input(self, response, spider):
         if self.init == 0:
-            # if not (response.meta.get('_parse', None) or response.meta.get('_update', None)):
-            #     clear_fixtures(self.base_path, sanitize_module_name(spider.name))
-            if response.meta.get('_parse', None):
+            if '_parse' in response.meta:
                 spider_dir = os.path.join(self.base_path, 'tests', sanitize_module_name(spider.name))
                 if os.path.exists(spider_dir):
                     self.fixture_counters = get_fixture_counts(spider_dir, spider, \
@@ -107,7 +105,7 @@ class TestMasterMiddleware:
         #the parse command screws with middleware order because it uses essentially
         #two callbacks: a preliminary internal one and the real one. This is
         #grabbing the real callback from the meta.
-        if response.meta.get('_parse', None) and not response.meta.get('_update', None):
+        if '_parse' in response.meta and '_update' not in response.meta:
             the_request = response.request.copy()
             the_request.callback = response.meta['_callback']
             temp_meta = response.meta.copy()
@@ -152,7 +150,7 @@ class TestMasterMiddleware:
         #parse command will return requests at the end of callbacks but not
         #items... As such I am processing the result as it comes, before it
         #reaches this point (and  storing the result in meta).
-        if response.meta.get('_parse', None) and not response.meta.get('_update', None):
+        if '_parse' in response.meta and '_update' not in response.meta:
             processed_result = response.meta.pop('_processed_result')
             out = result
         else:   
@@ -195,9 +193,9 @@ class TestMasterMiddleware:
 
         validate_results(test_dir, spider.settings, data['result'], request['url'])
 
-        if callback_counter < max_fixtures or response.meta.get('_update', None):
+        if callback_counter < max_fixtures or '_update' in response.meta:
             index = callback_counter + 1
-            if response.meta.get('_fixture', None):
+            if '_fixture' in response.meta:
                 index = response.meta['_fixture']
             add_sample(index, test_dir, test_name, data)
             write_json(test_dir, _request, data['result'], index)
@@ -205,7 +203,7 @@ class TestMasterMiddleware:
         else:
             #this random overwriting logic should only apply to generating testcases
             #via scrapy crawl
-            if not (response.meta.get('_update', None) or response.meta.get('_parse', None)):
+            if not ('_update' in response.meta or '_parse' in response.meta):
                 r = random.randint(0, callback_counter)
                 if r < max_fixtures:
                     index = r + 1
@@ -219,6 +217,6 @@ class TestMasterMiddleware:
 
         #if we don't return an empty list here, 'update' keeps on making
         #requests indefinitely!
-        if response.meta.get('_update', None):
+        if '_update' in response.meta:
             return []
         return out

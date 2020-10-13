@@ -1,3 +1,4 @@
+
 # Scrapy TestMaster
 
 [![PyPI Version](https://img.shields.io/pypi/v/scrapy-testmaster.svg?color=blue)](https://pypi.org/project/scrapy-testmaster)
@@ -37,26 +38,26 @@ This is what your project will look like after calling `scrapy crawl` or `testma
 my_project
 
 ├── my_project
-│   ├── __init__.py
-│   ├── items.py
-│   ├── middlewares.py
-│   ├── pipelines.py
-│   ├── settings.py
-│   └── spiders
-│       ├── __init__.py
-│       └── my_spider.py
+│   ├── __init__.py
+│   ├── items.py
+│   ├── middlewares.py
+│   ├── pipelines.py
+│   ├── settings.py
+│   └── spiders
+│       ├── __init__.py
+│       └── my_spider.py
 ├── testmaster
-│   ├── __init__.py
-│   └── tests
-│       ├── __init__.py
-│       └── my_spider
-│           ├── __init__.py
-│           └── my_callback
-│               ├── __init__.py
+│   ├── __init__.py
+│   └── tests
+│       ├── __init__.py
+│       └── my_spider
+│           ├── __init__.py
+│           └── my_callback
+│               ├── __init__.py
 │               ├── config.py
-│               ├── fixture1.bin
-│               ├── fixture2.bin
-│               ├── test_fixtures.py
+│               ├── fixture1.bin
+│               ├── fixture2.bin
+│               ├── test_fixtures.py
 │               ├── view.json 
 └── scrapy.cfg
 ```
@@ -89,7 +90,7 @@ $ testmaster parse "url1,url2,url3" --spider=my_spider -c my_callback --meta='{"
 ```
 3. Specify requests to be later executed in python-dict format within the `config.py` file for the spider and callback in question (e.g. `"url":"", "headers":{..}, "_class":"scrapy.http.request.form.FormRequest"`}). These will get executed whenever you call `testmaster update` with the appropriate spider, callback args and options (see [`testmaster update`](#testmaster-update)), and lead to new fixtures being written subject to the usual conditions.
 ```
-$ testmaster update my_spider -c my_callback
+$ testmaster update my_spider -c my_callback --new
 ```
 
 The first two of these commands will automatically generate a directory `testmaster` in your project root dir if none exists, containing all the generated tests/fixtures for the spider you just ran, plus two more files (`config.py` and `view.json`). (See the directory tree example above.) 
@@ -225,6 +226,7 @@ All items will be tested against your item rules, and equivalently for requests.
 `Default: None`  
 
 **Note**: Remember that you can always apply any of these settings per spider including them in your spider's `custom_settings` class attribute - see https://docs.scrapy.org/en/latest/topics/settings.html#settings-per-spider.  
+<br/>
 
 ### Callback-specific settings (in config.py)
 Be apprised that any list-type options are not combined across the global value and the equivalent local value in the config.py file. That is to say, if you want to add one more element to one of these options like ...EXCLUDED_HEADERS or ...INCLUDED_SETTINGS at the callback level, you can't just fill the list in the config.py file with that single additional element; you must include all of the elements. (This already follows from the rule I stated earlier and which I'll restate again: if any edits away from the default have been made at the local level for a given setting, those edits dominate.) As for custom rules, they work as follows: the global custom rules are tried after the local rules are tried. So you can't override the global custom rules with the local rules.
@@ -262,8 +264,8 @@ Example of request format with special requests:
         "url": "https://examplewebsite011235811.com/info",  
         "headers": {"referer":"...", "content_type": "..."},
         "method": "POST",
-        "data": {"x": "y"}, 
         "_class": "scrapy.http.request.form.FormRequest",
+        "body": "user=blah&password=blah",
         "meta": {"x": "y"}
     },
     {
@@ -278,7 +280,7 @@ Example of request format with special requests:
 ]
 ```
 `Default: []`  
-All of these keys are optional except "url" (similar to `testmaster parse`). The callback is inferred from the location of the config.py file. You can get a sense of what the format for a given request needs to look like by running `scrapy crawl` for that spider and looking at `view.json` for the relevant callback. The only caveat is that JSON "nulls" need to be converted to Python "None", and same for JSON "true"/"false" (to "True"/"False").  
+All of these keys are optional except "url" and "meta". The callback is inferred from the location of the config.py file. You can get a sense of what the format for a given request needs to look like by running `scrapy crawl` for that spider and looking at `view.json` for the relevant callback. The only caveat is that JSON "nulls" need to be converted to Python "None", and same for JSON "true"/"false" (to "True"/"False").  
 When this request is triggered, it is treated as if you had run `testmaster parse` with the same info. So its response and results can then become part of a new fixture if all your validation rules are passed and there is space.
 
 Currently, you're going to have to delete these requests manually from the `config.py` file after they've been added to make sure they're not triggered again next time you execute `testmaster update`.
@@ -323,7 +325,8 @@ Because of the `homepage` arg, this will first try to grab a homepage value from
 
 #### Why doesn't `scrapy parse` take multiple urls?
 I suspect its developers figured that if the requests need to be made in a similar manner across different webpages, those webpages cannot nontrivially differ. But I've found in my own scraping efforts that this is an incorrect assumption in a large number of cases. For example, it is common that one's callback code accounts differently for pages with no data versus non-empty pages, or pages with a data field X differently from pages without, and the requests to these two classes of page can be made in the same way (in the simplest case, with default headers and no cookies). Certainly, there is still an infinity of websites out there where most/all of the pages within the domain can be accessed without page-specific headers or parameters. So it's very useful to have a command which allows you to test several differing cases with one call.  
-
+<br/>
+  
 ### `testmaster establish`
 This command is simply for setting up the directory structure for a given spider or for a specific spider + callback without having to make any requests. It is not strictly necessary to use this command because `scrapy crawl` and `testmaster parse` will set up the directory structure on their own when they generate tests. Its raison d'etre is the case where it is desirable to define custom behaviour for debugging (for processing the testcases before they become inscribed fixtures) before making any requests. 
 Below is an example of this command and the result.
@@ -332,32 +335,32 @@ $ testmaster establish my_spider -c my_callback
 ```
 ```
 ├── testmaster
-│   ├── __init__.py
-│   └── tests
-│       ├── __init__.py
-│       └── my_spider
-│           ├── __init__.py
-│           └── my_callback
-│               ├── __init__.py
+│   ├── __init__.py
+│   └── tests
+│       ├── __init__.py
+│       └── my_spider
+│           ├── __init__.py
+│           └── my_callback
+│               ├── __init__.py
 │               ├── config.py
 ```
 Without the callback argument, it creates multiple subdirectories for each callback in the spider (identified using nothing more intelligent than regex, i.e. matches functions with args including "response" keyword). Example:
 ```
 ├── testmaster
-│   ├── __init__.py
-│   └── tests
-│       ├── __init__.py
-│       └── my_spider
-│           ├── __init__.py
-│           ├── my_callback
-│           │   ├── __init__.py
+│   ├── __init__.py
+│   └── tests
+│       ├── __init__.py
+│       └── my_spider
+│           ├── __init__.py
+│           ├── my_callback
+│           │   ├── __init__.py
 │           │   └── config.py
 │           └── my_callback1
 │               ├── __init__.py
 │               └── config.py
 ```
 This command will observe the **TESTMASTER_EXTRA_PATH** in your settings.  
-
+<br/>
 
 ### `testmaster inspect`
 
@@ -405,7 +408,7 @@ Then for example, to inspect a fixture's specific request we can do the followin
 ```
 $ testmaster inspect my_spider my_callback 4 | jq '.request'
 ```
-
+<br/>
 
 ### `testmaster update`
 You can update your fixtures to match your latest changes in a particular callback to avoid running the whole spider.  
@@ -449,6 +452,7 @@ Another important difference between `testmaster update` and `autounit update` i
 
 #### Caveats
 If you have used the 'extra path' setting to set up two or more classes of test for a single spider (perhaps because that spider has multiple distinct configurations), then `testmaster update` will only update any fixtures that can be found using the value for this `extra path` setting in settings.py at the moment you execute the command. So to update all the fixtures for that spider, across all its configurations, you have to repeatedly edit the extra path value in settings.py and call `testmaster update my_spider` for every distinct configuration/extra path. If this is a common situation for people to find themselves on and they find this inconvenient, let me know and I will add the feature that you can specify an extra path on the command-line.  
+<br/>
 
 ### Brief Note on the Role of `python -m unittest...` Regular Commands
 Calling `python -m unittest ...` will not evaluate your test cases against the custom rules you have specified in `settings.py` and/or any relevant `config.py` files. These unittest calls are only for checking that a change to your code hasn't broken anything. Your test cases are meant to be solid examples of desirable output; as previously described, they will only be written if they pass the custom rules you specified when you ran `testmaster parse`, `testmaster update` with `--dynamic` or `--new`, or `scrapy crawl`. If you forgot to specify some custom rules to check your results against before running one of these commands, then update these to the desired values before running `testmaster update` statically to check the responses you already downloaded against your new logic.  
@@ -464,6 +468,29 @@ Of course, the casual Scrapy user will not be concerned with running regular dyn
 ---
 ## On the Tests for this Library
 Ironically, the automatic test suite for this library is relatively sparse. In terms of the tests that can be found in this project, I adapted the tests that were part of the Scrapy Autounit project and added a couple more. This is not to say that it wasn't well-tested; each component was tested as it was completed, but tested via direct execution, with the testcases being projects that belong to a proprietary codebase. This was by far the easiest way to test a project like this, because I was able to test the correctness of the logic of all the helper commands by checking for the higher-level correctness of each of the commands under different parameters/settings. But obviously it would be very welcome if someone were to write up a stronger automatic test suite. Personally, I'm not going to put any effort into this issue; it is for the world to continue my work on this library, should the world desire.  
+
+---
+## The Example Project
+The example project contains two Scrapy spiders, one called "olympus" which crawls this basic website: http://olympus.realpython.org/profiles, and another called "shopify" which can grab products from the public API endpoint of Shopify websites (and by default gets products from the top 5 Shopify websites according to this website (https://www.shopistores.com/top-500-most-successful-shopify-stores/) as of 8:15 AM UTC, October 13 2020).  
+  
+The fixtures that exist in this project currently were generated according to the following algorithm:
+1. Alter *example/settings.py* as displayed.
+2. Create a *generic_rules.py* file at the head of the project with rules as displayed. 
+3. Call `testmaster establish olympus` to generate a fixture folder and *config.py* file for each callback.
+4. Call `testmaster establish shopify` to do the same for that spider.
+5. Alter *testmaster/tests/olympus/parse_login/config.py* as displayed.
+6. Call `testmaster update olympus --new` so as to create a fixture for the FormRequest described in REQUESTS_TO_ADD in that config file.
+7. Alter *testmaster/tests/olympus/parse_info/config.py* so as to enforce a primary field constraint (as displayed).
+8. Run `scrapy crawl olympus` so as to automatically generate fixtures for *parse* and *parse_info*, validated against *generic_rules.py* and (for the items in *parse_info*) validated against the local config file.
+9. Alter the *shopify* config file so as to change the SKIPPED_FIELDS and create another custom item rule to validate the prices for the discounted items in the data.
+10. Run `scrapy crawl shopify` until 10 fixtures are generated, validated by *generic_rules.py* and the local config file. 
+
+Possible things to play around with yourself:
+1. Inspect the results of the fixtures.
+2. Change the generic rules, global settings and/or the local configurations, and then run an update for a given spider and/or callbacks to test whether the fixtures are updated or whether an error message is displayed.
+3. Run `testmaster update spider_name --dynamic`  in order to re-download the original requests for one of the spiders.
+4.  Expand the number of fixtures for the `shopify` spider in the local config file and run `scrapy crawl shopify` so as to generate more fixtures.
+5. Delete the fixture and *view.json* file in *olympus/parse_info*, edit the body field in the request described in the REQUESTS_TO_ADD list in the local config file, and then run `testmaster update olympus parse_login --new` so as to see whether the edited request-dict still logs in successfully.
 
 ---
 ## Architecture/Logic

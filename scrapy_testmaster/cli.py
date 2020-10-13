@@ -9,9 +9,9 @@ from datetime import datetime
 from w3lib.url import is_url
 
 from scrapy.crawler import CrawlerProcess
+from scrapy.utils.project import inside_project, get_project_settings
 from scrapy.utils.python import to_unicode
 from scrapy.utils.reqser import request_from_dict
-from scrapy.utils.project import inside_project, get_project_settings
 from scrapy.commands.genspider import sanitize_module_name
 from scrapy.exceptions import UsageError
 

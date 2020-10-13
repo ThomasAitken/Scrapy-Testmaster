@@ -375,7 +375,9 @@ def prepare_callback_replay(fixture_path, encoding="utf-8"):
 
     crawler = Crawler(spider_cls, settings)
     spider_args_in = data.get('spider_args', data.get('spider_args_in', {}))
-    spider = spider_cls.from_crawler(crawler, **spider_args_in)
+    spider = spider_cls.from_crawler(crawler)
+    for k,v in spider_args_in.items():
+        setattr(spider, k, v)
     crawler.spider = spider
 
     return data, crawler, spider, settings

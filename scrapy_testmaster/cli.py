@@ -20,7 +20,7 @@ from scrapy_testmaster.utils import (
     auto_import,
     unpickle_data,
     decompress_data,
-    get_project_dir,
+    get_project_dirs,
     parse_callback_result,
     prepare_callback_replay,
     get_or_create_test_dir
@@ -77,9 +77,9 @@ class CommandLine:
         if self.fixture and not self.callback:
             self.error("Can't specify a fixture without a callback")
 
-        self.project_dir = get_project_dir()
+        self.project_dir, self.project_name = get_project_dirs()
         sys.path.append(self.project_dir)
-
+        
         self.settings = get_project_settings()
 
         if self.command == "parse":
@@ -182,9 +182,8 @@ class CommandLine:
             to_update = glob(target)
         # == if not self.callback
         else:
-            spider_path = os.path.join(self.project_dir, \
-                os.path.join(os.path.basename(self.project_dir), 'spiders/' + \
-                self.spider + '.py'))
+            spider_path = os.path.join(self.project_dir, self.project_name, \
+                'spiders/' + self.spider + '.py')
             to_update = get_test_paths(self.spider_dir, spider_path, self.extra_path, True)
 
         req_list = []
@@ -244,9 +243,8 @@ class CommandLine:
                 write_config(self.callback_dir)
                 did_something = True
         else:
-            spider_path = os.path.join(self.project_dir, \
-                os.path.join(os.path.basename(self.project_dir), 'spiders/' + \
-                self.spider + '.py'))
+            spider_path = os.path.join(self.project_dir, self.project_name, \
+                'spiders/' + self.spider + '.py')
             for callback in get_callbacks(spider_path):
                 callback_dir = os.path.join(
                     self.spider_dir, self.extra_path, callback)

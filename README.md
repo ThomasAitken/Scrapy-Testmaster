@@ -10,11 +10,11 @@ Scrapy TestMaster is an automatic test-generation, test-execution and general de
 As far as I am aware, Scrapy TestMaster is the most comprehensive tool yet for the automated debugging and testing of Scrapy spiders. It represents a strict extension of the capabilities of its most influential predecessor, Scrapy Autounit (https://github.com/scrapinghub/scrapy-autounit), with further features that make it more useful for both on-the-fly debugging and more robust monitoring of the kind that might be required in an enterprise context. Whereas other Scrapy testing libraries are useful only for crawler-validation subsequent to changes in the crawler code, this library offers further tools to test for changes in the targeted webpages themselves. More precisely, its capabilities include the following: 
 - Testing your Scrapy functions against specific requests on the fly, using an extended version of the Scrapy parse command (https://docs.scrapy.org/en/latest/topics/commands.html#std-command-parse) that can take any number of urls ([*testmaster parse*](#testmaster-parse)).
 - Using the above command to automatically generate testcases and unit tests.
-- Generating automatic testcases and unit tests as you run your spider via `scrapy crawl` (exactly like Scrapy Autounit).
+- Generating automatic testcases and unit tests as you run your spider via `scrapy crawl`.
 - Merging the debugging and test-generation processes by designing meta rules to determine whether a fixture (testcase) should be written based on the quality of the parsed results.
 - Specifying requests in a config file to be downloaded and evaluated upon the next execution (allows FormRequests, requests with cookies, requests using proxies, etc).
 - Designing custom testing/validation rules down to a callback-specific level so as to check the correctness of output in a very fine-grained manner.
-- Updating and validation of existing tests via a re-parsing of the original HTML source with the current spider code (a la *autounit update*).
+- Updating and validation of existing tests via a re-parsing of the original HTML source with the current spider code.
 - Updating and validation of existing tests via an additional re-downloading of the HTML source using the same request.
 
 Apart from the wider range of capabilities, the feature I most want to emphasise about this library is that it gives you the ability to *synthesise the processes of debugging and testcase-generation*. First you set up the custom logic for validating the output of your spider/s, then you call `scrapy crawl` or `testmaster parse`. If the results are acceptable, testcases are written; otherwise, you get an informative error message. 
@@ -62,7 +62,9 @@ my_project
 └── scrapy.cfg
 ```
 
-This is equivalent to Scrapy Autounit, but with two extra files, both small. Analogous to the `settings.py` module in every Scrapy project, `config.py` is for specifying the custom logic and rules that your test-results need to pass for the given callback directory in which the file resides. It also allows one to write down requests to be tested the next time you execute `testmaster parse`. `view.json` is simply a convenience for representing what's currently in your fixtures: it is an ordered list of the requests that generated the current fixtures for the callback in question, plus some basic summary stats. It is updated if the fixtures are changed.  
+Analogous to the `settings.py` module in every Scrapy project, `config.py` is for specifying the custom logic and rules that your test-results need to pass for the given callback directory in which the file resides. It also allows one to write down requests to be tested the next time you execute `testmaster parse`. `view.json` is simply a convenience for representing what's currently in your fixtures: it is an ordered list of the requests that generated the current fixtures for the callback in question, plus some basic summary stats. It is updated if the fixtures are changed. 
+
+I'm considering changing this structure so that the `testmaster` folder is eliminated and the `tests` folder is placed within the `my_project` subfolder (the folder containing `settings.py` and `spiders` which can have a different name from the outer folder). 
 
 ---
 ## Usage
@@ -94,28 +96,6 @@ $ testmaster update my_spider -c my_callback --new
 ```
 
 The first two of these commands will automatically generate a directory `testmaster` in your project root dir if none exists, containing all the generated tests/fixtures for the spider you just ran, plus two more files (`config.py` and `view.json`). (See the directory tree example above.) 
-
-### Running tests
-To run your tests statically, you can use `unittest` regular commands.
-
-###### Test all
-```
-$ python -m unittest
-```
-###### Test a specific spider
-```
-$ python -m unittest discover -s testmaster.tests.my_spider
-```
-###### Test a specific callback
-```
-$ python -m unittest discover -s testmaster.tests.my_spider.my_callback
-```
-###### Test a specific fixture
-```
-$ python -m unittest testmaster.tests.my_spider.my_callback.test_fixture2
-```
-
-It's worth stating that all of the commands in this library apart from `establish` and `inspect` have a debugging/testing purpose. These `unittest` commands are just useful to test your code against existing fixtures without changing them in any way.
 
 ### Other specific tasks
 
@@ -150,6 +130,28 @@ testmaster update my_spider -c my_callback --new
 ```
 If the results of the request triggered by this command pass your custom rules, and there is space in the fixtures, a new fixture will be written for this request and response.  
 
+### Running tests
+To run your tests statically, you can use `unittest` regular commands.
+
+###### Test all
+```
+$ python -m unittest
+```
+###### Test a specific spider
+```
+$ python -m unittest discover -s testmaster.tests.my_spider
+```
+###### Test a specific callback
+```
+$ python -m unittest discover -s testmaster.tests.my_spider.my_callback
+```
+###### Test a specific fixture
+```
+$ python -m unittest testmaster.tests.my_spider.my_callback.test_fixture2
+```
+
+It's worth stating that all of the commands in this library apart from `establish` and `inspect` have a debugging/testing purpose. These `unittest` commands are just useful to test your code against existing fixtures without changing them in any way.
+
 ### Important Caveats
 * As long as **TESTMASTER_ENABLED** is on, each time you run a spider using `scrapy crawl`, existing tests/fixtures will be over-written, if the results of the requests being made pass your custom rules. However, if you run a specific callback using `testmaster parse`, this over-writing will not apply - fixtures will be added (within the limit you have set by **TESTMASTER_MAX_FIXTURES_PER_CALLBACK**).
 * There are a few lines of code in this library that rely on the assumption that you haven't named your spider file differently from the name attribute of the spider itself. So keep these names aligned if you want assurance that everything will always work! (If you always use `scrapy genspider` and don't later edit the file name or spider name, there will, of course, be no problem.)
@@ -166,8 +168,6 @@ The fixtures are essentially just test cases for your spider. Exactly as in Scra
 ### Project/Spider Settings
 #### N.B. 
 You will notice that there is heavy overlap here with the settings in config.py. So you can set custom validation rules at any level, although any settings specified to a contrary, non-default value in a `config.py` file will take precedence for that particular callback.  
-
-#### Inherited from Scrapy Autounit
 
 **TESTMASTER_ENABLED**  
 Set this to `True` or `False` to enable or disable unit test generation when calling `scrapy crawl`, `testmaster parse` or when running `testmaster update` with the `--dynamic` or `--new` options. The other commands are completely unaffected (e.g. you can run static updates with or without this enabled).
@@ -204,8 +204,6 @@ Sets a list of settings names to be recorded in the generated test case.
 **TESTMASTER_EXTRA_PATH**  
 This is an extra string element to add to the test path and name between the spider name and callback name. You can use this to separate tests from the same spider with different configurations. This is respected by all methods of creating directories for spiders + callbacks, i.e. `testmaster establish`, `testmaster parse` and `scrapy crawl`.   It is also respected by `testmaster update` when it's working out what fixtures you want to update.  
 `Default: None`  
-
-#### New Settings
 
 The following 3 settings are the main way to implement custom testing behaviour. They have two utilities: *ex-ante* and *ex-post*. **ex-ante**: if the rules established by these settings are violated while Testmaster is evaluating the results of a request that has not yet become a fixture, the fixture will not be written. **ex-post**: if any of them are violated when you're updating an existing fixture (i.e. parsing the pre-downloaded response with new code), you know that you have made a bad change to your code. 
 

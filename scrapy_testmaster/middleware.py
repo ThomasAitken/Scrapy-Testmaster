@@ -16,7 +16,7 @@ from .utils import (
     response_to_dict,
     get_or_create_test_dir,
     parse_request,
-    get_project_dir,
+    get_project_dirs,
     get_middlewares,
     create_dir,
     parse_callback_result,
@@ -80,7 +80,7 @@ class TestMasterMiddleware:
 
         self.base_path = settings.get(
             'TESTMASTER_BASE_PATH',
-            default=os.path.join(get_project_dir(), 'testmaster')
+            default=os.path.join(get_project_dirs()[0], 'testmaster')
         )
         
         create_dir(self.base_path, exist_ok=True)

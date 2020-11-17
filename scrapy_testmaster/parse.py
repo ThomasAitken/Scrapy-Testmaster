@@ -14,7 +14,7 @@ from scrapy.utils.conf import arglist_to_dict
 from scrapy.utils.spider import iterate_spider_output, spidercls_for_request
 from scrapy.exceptions import UsageError
 
-from .utils import parse_request, get_project_dir
+from .utils import parse_request, get_project_dirs
 from .utils_novel import get_cb_settings, get_homepage_cookies
 
 from w3lib.http import basic_auth_header
@@ -157,7 +157,7 @@ def process_result_for_middleware(spider, callback, items, requests):
     for item in items:
         processed_result.append({'type': 'item', 'data': item})
     for req in requests:
-        base_path = os.path.join(get_project_dir(), 'testmaster')
+        base_path = os.path.join(get_project_dirs()[0], 'testmaster')
         test_dir = os.path.join(base_path, 'tests', sanitize_module_name(spider.name), callback.__name__)
         cb_settings = None
         if os.path.exists(test_dir):

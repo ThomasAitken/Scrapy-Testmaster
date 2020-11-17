@@ -47,22 +47,31 @@ def create_instance(objcls, settings, crawler, *args, **kwargs):
         return objcls(*args, **kwargs)
 
 
-def get_project_dir():
+def get_project_dirs():
     closest_cfg = closest_scrapy_cfg()
     if closest_cfg:
-        return os.path.dirname(closest_cfg)
-
+        outer_dir = os.path.dirname(closest_cfg)
+    inner_dir = ""
+    if os.environ.get('SCRAPY_PROJECT'):
+        inner_dir = os.environ.get('SCRAPY_PROJECT')
+    if outer_dir and inner_dir:
+        return (outer_dir, inner_dir)
+    
     init_env()
     scrapy_module = os.environ.get('SCRAPY_SETTINGS_MODULE')
-    if scrapy_module is None:
-        return None
+    if scrapy_module is None and not outer_dir:
+        raise Exception("Project configuration awry")
+    if not inner_dir:
+        inner_dir = scrapy_module.split('.')[0]
+    if outer_dir and inner_dir:
+        return (outer_dir, inner_dir)
 
     try:
         module = import_module(scrapy_module)
-        return os.path.dirname(os.path.dirname(module.__file__))
+        outer_dir = os.path.dirname(os.path.dirname(module.__file__))
+        return (outer_dir, inner_dir)
     except ImportError:
-        return None
-
+        raise Exception("Project configuration awry")
 
 def get_middlewares(spider):
     full_list = build_component_list(

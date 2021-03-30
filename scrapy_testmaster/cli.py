@@ -13,7 +13,6 @@ from scrapy.utils.project import inside_project, get_project_settings
 from scrapy.utils.python import to_unicode
 from scrapy.utils.reqser import request_from_dict
 from scrapy.commands.genspider import sanitize_module_name
-from scrapy.exceptions import UsageError
 
 from scrapy_testmaster.utils import (
     add_sample,
@@ -42,7 +41,6 @@ from .parse import (
 )
 
 
-
 class CommandLine:
     def __init__(self, parser):
         self.parser = parser
@@ -54,7 +52,7 @@ class CommandLine:
         self.command = self.args.command
 
         self.spider = sanitize_module_name(self.args.spider) if \
-            self.args.spider else None 
+            self.args.spider else None
         try:
             self.callback = self.args.callback
         except AttributeError:
@@ -63,7 +61,7 @@ class CommandLine:
             self.fixture = self.args.fixture
         except AttributeError:
             self.fixture = None
-            
+
         if self.command == 'update':
             try:
                 self.new = self.args.new
@@ -79,14 +77,16 @@ class CommandLine:
 
         self.project_dir, self.project_name = get_project_dirs()
         sys.path.append(self.project_dir)
-        
+
         self.settings = get_project_settings()
 
         if self.command == "parse":
-            url_list = [url.strip() for url in self.args.urls.split(',')]
+            url_list = [url.strip() for url in self.args.urls.split('|')]
             for url in url_list:
                 if not is_url(url):
-                    self.error("Something went wrong with your urls arg!")
+                    self.error("Something went wrong with your urls arg! "
+                               "Note that as of version 1.0, the character for separating "
+                               "multiple urls is '|', as opposed to ','")
 
             self.args = process_options(self.args)
             crawler_process = CrawlerProcess(self.settings)
@@ -123,8 +123,8 @@ class CommandLine:
                         "'{}' from '{}' spider".format(self.callback, self.spider))
 
             if self.fixture:
-                self.fixture_path = os.path.join(
-                    self.callback_dir, self.parse_fixture_arg())
+                self.fixture_path = os.path.join(self.callback_dir,
+                                                 self.parse_fixture_arg())
                 if not os.path.isfile(self.fixture_path):
                     self.error("Fixture '{}' not found".format(self.fixture_path))
 
@@ -182,12 +182,12 @@ class CommandLine:
             to_update = glob(target)
         # == if not self.callback
         else:
-            spider_path = os.path.join(self.project_dir, self.project_name, \
-                'spiders/' + self.spider + '.py')
+            spider_path = os.path.join(self.project_dir, self.project_name,
+                                       'spiders/' + self.spider + '.py')
             to_update = get_test_paths(self.spider_dir, spider_path, self.extra_path, True)
 
         req_list = []
-    
+
         homepage_cookies = {}
         i = 0
         for path in to_update:
@@ -233,7 +233,6 @@ class CommandLine:
                 to_add = get_test_paths(self.spider_dir, spider_path, self.extra_path)
                 req_list += get_reqs_multiple(to_add, spider)
                 trigger_requests(crawler_process, spider, req_list)
-                
 
     def establish(self):
         did_something = False
@@ -243,8 +242,8 @@ class CommandLine:
                 write_config(self.callback_dir)
                 did_something = True
         else:
-            spider_path = os.path.join(self.project_dir, self.project_name, \
-                'spiders/' + self.spider + '.py')
+            spider_path = os.path.join(self.project_dir, self.project_name,
+                                       'spiders/' + self.spider + '.py')
             for callback in get_callbacks(spider_path):
                 callback_dir = os.path.join(
                     self.spider_dir, self.extra_path, callback)
@@ -257,11 +256,10 @@ class CommandLine:
                     did_something = True
         if did_something:
             print("Command successful! Now you can tweak callback-specific "
-                "settings in the config.py file/s generated.")
+                  "settings in the config.py file/s generated.")
         else:
             print("Command did nothing because a dir exists for callback/s "
-                "indicated already.")
-
+                  "indicated already.")
 
     def parse_command(self):
         if self.command == "inspect":
@@ -281,42 +279,57 @@ def main():
     parse_cmd = subparsers.add_parser(
         'parse',
         description="Downloads and parses n requests up to depth d with different "
-            "urls but the same attributes otherwise",
+                    "urls but the same attributes otherwise",
         formatter_class=argparse.RawTextHelpFormatter)
-    parse_cmd.add_argument("urls", help="urls separated by a comma")
-    parse_cmd.add_argument("--spider", dest="spider",
+    parse_cmd.add_argument("urls", help="urls separated by '|'")
+    parse_cmd.add_argument(
+        "--spider", dest="spider",
         help="use this spider without looking for one")
-    parse_cmd.add_argument("-a", dest="spargs", action="append", default=[], metavar="NAME=VALUE",
+    parse_cmd.add_argument(
+        "-a", dest="spargs", action="append", default=[], metavar="NAME=VALUE",
         help="set spider argument (may be repeated)")
-    parse_cmd.add_argument("--homepage", dest="homepage", action="store_true",  
+    parse_cmd.add_argument(
+        "--homepage", dest="homepage", action="store_true",
         help="choose whether to get cookies from homepage")
-    parse_cmd.add_argument("--pipelines", action="store_true",
+    parse_cmd.add_argument(
+        "--pipelines", action="store_true",
         help="process items through pipelines")
-    parse_cmd.add_argument("--nolinks", dest="nolinks", action="store_true",
+    parse_cmd.add_argument(
+        "--nolinks", dest="nolinks", action="store_true",
         help="don't show links to follow (extracted requests)")
-    parse_cmd.add_argument("--noitems", dest="noitems", action="store_true",
+    parse_cmd.add_argument(
+        "--noitems", dest="noitems", action="store_true",
         help="don't show scraped items")
-    parse_cmd.add_argument("--nocolour", dest="nocolour", action="store_true",
+    parse_cmd.add_argument(
+        "--nocolour", dest="nocolour", action="store_true",
         help="avoid using pygments to colorize the output")
-    parse_cmd.add_argument("-r", "--rules", dest="rules", action="store_true",
+    parse_cmd.add_argument(
+        "-r", "--rules", dest="rules", action="store_true",
         help="use CrawlSpider rules to discover the callback")
-    parse_cmd.add_argument("-c", "--callback", dest="callback",
+    parse_cmd.add_argument(
+        "-c", "--callback", dest="callback",
         help="use this callback for parsing, instead looking for a callback")
-    parse_cmd.add_argument("-m", "--meta", dest="meta",
+    parse_cmd.add_argument(
+        "-m", "--meta", dest="meta",
         help="inject extra meta into the Request, it must be a valid raw json string")
-    parse_cmd.add_argument("--cbkwargs", dest="cbkwargs",
+    parse_cmd.add_argument(
+        "--cbkwargs", dest="cbkwargs",
         help="inject extra callback kwargs into the Request, it must be a valid raw json string")
-    parse_cmd.add_argument("-d", "--depth", dest="depth", type=int, default=1,
+    parse_cmd.add_argument(
+        "-d", "--depth", dest="depth", type=int, default=1,
         help="maximum depth for parsing requests [default: %default]")
-    parse_cmd.add_argument("-v", "--verbose", dest="verbose", action="store_true",
+    parse_cmd.add_argument(
+        "-v", "--verbose", dest="verbose", action="store_true",
         help="print each depth level one by one")
-    parse_cmd.add_argument("--headers", dest="headers", 
+    parse_cmd.add_argument(
+        "--headers", dest="headers",
         help="inject extra headers, it must be a valid raw json string")
-    parse_cmd.add_argument("--method", dest="method", 
+    parse_cmd.add_argument(
+        "--method", dest="method",
         help="specify \'post\' to get a POST request")
-    parse_cmd.add_argument("--cookies", dest="cookies", 
+    parse_cmd.add_argument(
+        "--cookies", dest="cookies",
         help="add cookies to send, it must be a raw json string")
-
 
     inspect_cmd = subparsers.add_parser(
         'inspect',
@@ -338,11 +351,10 @@ def main():
         "The fixture to update.\n"
         "Can be the fixture number or the fixture name.\n"
         "If not specified, all fixtures will be updated."))
-    update_cmd.add_argument('--dynamic', action="store_true", 
-        help=("Include this to re-download the response."))
+    update_cmd.add_argument('--dynamic', action="store_true",
+                            help=("Include this to re-download the response."))
     update_cmd.add_argument('--new', action="store_true",
-        help=("Downloads requests from REQUESTS_TO_ADD"))
-
+                            help=("Downloads requests from REQUESTS_TO_ADD"))
 
     establish_cmd = subparsers.add_parser(
         'establish',

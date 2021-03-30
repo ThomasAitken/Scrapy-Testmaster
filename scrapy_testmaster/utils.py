@@ -7,12 +7,12 @@ import shutil
 from importlib import import_module
 from itertools import islice
 
-from .utils_novel import get_cb_settings, request_to_dict
+from .utils_novel import get_cb_settings, request_to_dict, validate_results
 
 import six
 from scrapy import signals
 from scrapy.crawler import Crawler
-from scrapy.exceptions import NotConfigured
+from scrapy.exceptions import NotConfigured, _InvalidOutput
 from scrapy.http import Request, Response
 from scrapy.item import Item
 from scrapy.utils.conf import (build_component_list, closest_scrapy_cfg,
@@ -48,15 +48,15 @@ def create_instance(objcls, settings, crawler, *args, **kwargs):
 
 
 def get_project_dirs():
+    outer_dir = inner_dir = ""
     closest_cfg = closest_scrapy_cfg()
     if closest_cfg:
         outer_dir = os.path.dirname(closest_cfg)
-    inner_dir = ""
     if os.environ.get('SCRAPY_PROJECT'):
         inner_dir = os.environ.get('SCRAPY_PROJECT')
     if outer_dir and inner_dir:
         return (outer_dir, inner_dir)
-    
+
     init_env()
     scrapy_module = os.environ.get('SCRAPY_SETTINGS_MODULE')
     if scrapy_module is None and not outer_dir:
@@ -72,6 +72,7 @@ def get_project_dirs():
         return (outer_dir, inner_dir)
     except ImportError:
         raise Exception("Project configuration awry")
+
 
 def get_middlewares(spider):
     full_list = build_component_list(
@@ -153,8 +154,7 @@ def response_to_dict(response):
     return {
         'cls': '{}.{}'.format(
             type(response).__module__,
-            getattr(type(response), '__qualname__', None) or
-            getattr(type(response), '__name__', None)
+            getattr(type(response), '__qualname__', None) or getattr(type(response), '__name__', None)
         ),
         'url': response.url,
         'status': response.status,
@@ -240,15 +240,15 @@ def clean_headers(headers, spider_settings, cb_settings, mode=""):
         headers.pop(header.encode(), None)
     if mode == "decode":
         decoded = {}
-        for key,value in headers.items():
-            decoded[key.decode()] = value[0].decode() 
+        for key, value in headers.items():
+            decoded[key.decode()] = value[0].decode()
         return decoded
 
 
 def clean_item(item, spider_settings, cb_settings):
     skipped_global = spider_settings.get('TESTMASTER_SKIPPED_FIELDS', default=[])
     try:
-        skipped_local = cb_settings.REQUEST_SKIPPED_FIELDS
+        skipped_local = cb_settings.SKIPPED_FIELDS
     except AttributeError:
         skipped_local = []
     skipped_fields = skipped_local if skipped_local else skipped_global
@@ -304,8 +304,8 @@ if __name__ == '__main__':
     if not os.path.exists(config_file):
         config_src = os.path.dirname(__file__) + '/config_doc.py'
         shutil.copyfile(config_src, config_file)
-        
-        
+
+
 def binary_check(fx_obj, cb_obj, encoding):
     if isinstance(cb_obj, (dict, Item)):
         fx_obj = {
@@ -385,7 +385,7 @@ def prepare_callback_replay(fixture_path, encoding="utf-8"):
     crawler = Crawler(spider_cls, settings)
     spider_args_in = data.get('spider_args', data.get('spider_args_in', {}))
     spider = spider_cls.from_crawler(crawler)
-    for k,v in spider_args_in.items():
+    for k, v in spider_args_in.items():
         setattr(spider, k, v)
     crawler.spider = spider
 
@@ -428,7 +428,7 @@ def generate_test(fixture_path, encoding='utf-8'):
             if k not in ('crawler', 'settings', 'start_urls')
         }
         self.assertEqual(spider_args_in, result_attr_in,
-                         'Input arguments not equal!')
+                         'Input arguments not equal!\nFixture path: %s' % fixture_path)
 
         for mw in middlewares:
             if hasattr(mw, 'process_spider_input'):
@@ -448,8 +448,9 @@ def generate_test(fixture_path, encoding='utf-8'):
                 raise AssertionError(
                     "The fixture's data length doesn't match with "
                     "the current callback's output length. "
-                    "Expected %s elements, found %s" % (
-                        len(fx_result), index + 1 + len(list(result)))
+                    "Expected %s elements, found %s.\nFixture path: %s" % (
+                        len(fx_result), index + 1 + len(list(result)),
+                        fixture_path)
                 )
 
             cb_settings = get_cb_settings(fixture_path)
@@ -460,9 +461,27 @@ def generate_test(fixture_path, encoding='utf-8'):
             if fx_item['type'] == 'request':
                 clean_request(fx_obj, settings, cb_settings)
                 clean_request(cb_obj, settings, cb_settings)
+                result_to_validate = {'type': 'request', 'data': cb_obj}
+                try:
+                    validate_results(fixture_path, settings, [result_to_validate], request.url)
+                except _InvalidOutput as e:
+                    six.raise_from(
+                        _InvalidOutput(
+                            "Callback output #{} is invalid "
+                            "Problem: {}.\nFixture path: {}".format(index, e, fixture_path)),
+                        None)
             else:
                 clean_item(fx_obj, settings, cb_settings)
                 clean_item(cb_obj, settings, cb_settings)
+                result_to_validate = {'type': 'item', 'data': cb_obj}
+                try:
+                    validate_results(fixture_path, settings, [result_to_validate], request.url)
+                except _InvalidOutput as e:
+                    six.raise_from(
+                        _InvalidOutput(
+                            "Callback output #{} is invalid "
+                            "Problem: {}.\nFixture path: {}".format(index, e, fixture_path)),
+                        None)
 
             if fx_version == 2 and six.PY3:
                 fx_obj = binary_check(fx_obj, cb_obj, encoding)
@@ -473,7 +492,7 @@ def generate_test(fixture_path, encoding='utf-8'):
                 six.raise_from(
                     AssertionError(
                         "Callback output #{} doesn't match recorded "
-                        "output:{}".format(index, e)),
+                        "output: {}.\nFixture path: {}".format(index, e, fixture_path)),
                     None)
 
         # Spider attributes get updated after the yield
@@ -483,5 +502,5 @@ def generate_test(fixture_path, encoding='utf-8'):
         }
 
         self.assertEqual(data['spider_args_out'], result_attr_out,
-                         'Output arguments not equal!')
+                         'Output arguments not equal!\nFixture path: %s' % fixture_path)
     return test

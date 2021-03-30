@@ -2,6 +2,7 @@
 # Scrapy TestMaster
 
 [![PyPI Version](https://img.shields.io/pypi/v/scrapy-testmaster.svg?color=blue)](https://pypi.org/project/scrapy-testmaster)
+[![GitHub Actions (Tests)](https://github.com/ThomasAitken/Scrapy-Testmaster/workflows/Tests/badge.svg)](https://github.com/ThomasAitken/Scrapy-Testmaster/)
 
 ## Overview
 
@@ -309,7 +310,7 @@ All config.py files will include by default two classes: `class ItemRules(object
 ### `testmaster parse`
 This is just like `scrapy parse` (https://docs.scrapy.org/en/latest/topics/commands.html#std-command-parse) but with greater powers: a greater diversity of requests can be specified and multiple urls can be inputted. Furthermore, if you enable `TestMasterMiddleware`, then the requests triggered by this command will be used to create new testcases, assuming the results pass any custom rules you set down and you haven't reached the max fixtures limit. 
 
-`testmaster parse` takes exactly the same arguments/options as `scrapy parse`, plus three additional options: headers, cookies, and `--homepage` (to visit the website homepage to pick up one or more session token/s before the primary requests are kicked off). The url argument remains the same except that many urls can be inserted at once, separated by commas, i.e. `"https://www.exampledomain.com/page1,https://www.exampledomain.com/page2,https://exampledomain.com/page2"`. The depth argument is (of course) re-calibrated for the input plurality. 
+`testmaster parse` takes exactly the same arguments/options as `scrapy parse`, plus three additional options: headers, cookies, and `--homepage` (to visit the website homepage to pick up one or more session token/s before the primary requests are kicked off). The url argument remains the same except that many urls can be inserted at once, separated by `|`, i.e. `"https://www.exampledomain.com/page1|https://www.exampledomain.com/page2|https://exampledomain.com/page2"`. (This used to be comma-separation, and was changed as of version 1.0.) The depth argument is (of course) re-calibrated for the input plurality. 
 
 Like `scrapy crawl`, this command will not write any tests automatically unless `TestMasterMiddleware` is enabled. Unlike `scrapy crawl`, this command will never generate tests/fixtures that overwrite existing ones; it is additive only (though also beholden to ***TESTMASTER_MAX_FIXTURES_PER_CALLBACK**).
 

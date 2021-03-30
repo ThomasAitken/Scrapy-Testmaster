@@ -1,8 +1,8 @@
 import unittest
-import os
 
 from scrapy_testmaster.utils_novel import validate_results
 from scrapy.exceptions import _InvalidOutput
+from .shared import Settings, write_config, del_config
 
 config_1 = '''
 PRIMARY_ITEM_FIELDS = ["name"]
@@ -16,44 +16,50 @@ class RequestRules(object):
     def basic_rule(self, request):
         assert("meta" in request),"Fail"
 '''
+config_3 = '''
+PRIMARY_ITEM_FIELDS = ["cool"]  
+'''
 
-def write_config(file_string):
-    with open('config.py', 'w') as f:
-        f.write(file_string)
 
-def del_config():
-    os.remove('config.py')
-
-class Settings(object):
+class Settings1(Settings):
     TESTMASTER_OBLIGATE_ITEM_FIELDS = ["name"]
 
-    def getlist(self, attr_name, default=[]):
-        try:
-            return getattr(self, attr_name)
-        except AttributeError:
-            return default
-    
-    def get(self, attr_name, default=None):
-        try:
-            return getattr(self, attr_name)
-        except AttributeError:
-            return default
 
-result = [{"type": "item", "data": {"name": ""}}, {"type": "request", "data": {}}]
-spider_settings = Settings()
+class Settings2(Settings):
+    TESTMASTER_PRIMARY_ITEM_FIELDS = ["uncool"]  
+    TESTMASTER_INCLUDED_SETTINGS = []
+
+
+result1 = [{"type": "item", "data": {"name": ""}}, {"type": "request", "data": {}}]
+spider_settings1 = Settings1()
+
+spider_settings2 = Settings2() 
+result2 = [{"type": "item", "data": {"uncool": "1"}}, {"type": "request", "data": {}}]
+result3 = [{"type": "item", "data": {"cool": "1"}}, {"type": "request", "data": {}}]
 
 
 class TestValidation(unittest.TestCase):
     def test_conflict(self):
         write_config(config_1)
         with self.assertRaises(_InvalidOutput):
-            validate_results('', spider_settings, result, '')
+            validate_results('', spider_settings1, result1, '')
         del_config()
 
     def test_item_rule(self):
         write_config(config_2)
         with self.assertRaises(_InvalidOutput):
-            validate_results('', spider_settings, result, '')
+            validate_results('', spider_settings1, result1, '')
+        del_config()
+
+    def test_override1(self):
+        write_config(config_3)
+        with self.assertRaises(_InvalidOutput):
+            validate_results('', spider_settings2, result2, '')
+        del_config()
+
+    def test_override2(self):
+        write_config(config_3)
+        validate_results('', spider_settings2, result3, '')
         del_config()
 
 

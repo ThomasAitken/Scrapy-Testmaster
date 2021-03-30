@@ -4,3 +4,5 @@ dist/
 .python-version
 __pycache__
 todo.txt
+.tox/
+.vscode/

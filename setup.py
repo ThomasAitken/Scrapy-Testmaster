@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name='scrapy-testmaster',
-    version='1.0',
+    version='1.1',
     author='Thomas Aitken',
     author_email='tclaitken@gmail.com',
     description='Automated testing and debugging tool for Scrapy.',
@@ -26,7 +26,7 @@ setuptools.setup(
         'datadiff==2.0.0',
         'requests'
     ],
-    entry_points = {
+    entry_points={
         'console_scripts': [
             'testmaster=scrapy_testmaster.cli:main',
         ],

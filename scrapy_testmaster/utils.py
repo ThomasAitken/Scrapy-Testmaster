@@ -325,6 +325,19 @@ def _clean(data, field_list):
         data.pop(field, None)
 
 
+def process_result(result, spider_settings, cb_settings):
+    items = [x["data"] for x in filter(
+        lambda res: res["type"] == "item", result)]
+    requests = [x["data"] for x in filter(
+        lambda res: res["type"] == "request", result)]
+    for i in range(len(items)):
+        clean_item(items[i], spider_settings, cb_settings)
+
+    requests = [clean_request(req, spider_settings, cb_settings) for
+                req in requests]
+    return items, requests
+
+
 def erase_special_metakeys(request):
     new_meta = {}
     for k, v in request.meta.items():
@@ -537,7 +550,7 @@ def generate_test(fixture_path, encoding='utf-8'):
                 cb_obj = clean_request(cb_obj, settings, cb_settings)
                 result_to_validate = {'type': 'request', 'data': cb_obj}
                 try:
-                    validate_results(test_dir, settings, [result_to_validate], request.url)
+                    validate_results(test_dir, settings, [], [result_to_validate], request.url)
                 except _InvalidOutput as e:
                     six.raise_from(
                         _InvalidOutput(
@@ -549,7 +562,7 @@ def generate_test(fixture_path, encoding='utf-8'):
                 clean_item(cb_obj, settings, cb_settings)
                 result_to_validate = {'type': 'item', 'data': cb_obj}
                 try:
-                    validate_results(fixture_path, settings, [result_to_validate], request.url)
+                    validate_results(fixture_path, settings, [result_to_validate], [], request.url)
                 except _InvalidOutput as e:
                     six.raise_from(
                         _InvalidOutput(

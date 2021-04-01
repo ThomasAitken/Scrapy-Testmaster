@@ -103,7 +103,7 @@ def basic_items_check(items, obligate_fields, primary_fields, request_url):
                                      "Empty field: %s" % (request_url, field))
 
 
-def check_options(spider_settings, config, result, request_url):
+def check_options(spider_settings, config, items, request_url):
     obligate_local = set()
     primary_local = set()
     obligate_global = set(spider_settings.getlist('TESTMASTER_OBLIGATE_ITEM_FIELDS', []))
@@ -119,13 +119,10 @@ def check_options(spider_settings, config, result, request_url):
             pass
     obligate_fields = obligate_local if obligate_local else obligate_global
     primary_fields = primary_local if primary_local else primary_global
-    items = map(lambda x: x["data"], filter(lambda res: res["type"] == "item", result))
-    basic_items_check(items, obligate_fields, primary_fields, request_url)
-    items = map(lambda x: x["data"], filter(lambda res: res["type"] == "item", result))
     basic_items_check(items, obligate_fields, primary_fields, request_url)
 
 
-def check_global_rules(spider_settings, result, request_url):
+def check_global_rules(spider_settings, items, requests, request_url):
     path_to_rules = spider_settings.get('TESTMASTER_PATH_TO_RULES_FILE', None)
     if path_to_rules:
         try:
@@ -136,41 +133,41 @@ def check_global_rules(spider_settings, result, request_url):
                   "settings does not exist.")
         if hasattr(module, "ItemRules"):
             itemclass = module.ItemRules()
-            check_item_rules(itemclass, result, request_url)
+            check_item_rules(itemclass, items, request_url)
         if hasattr(module, "RequestRules"):
             reqclass = module.RequestRules()
-            check_req_rules(reqclass, result, request_url)
+            check_req_rules(reqclass, requests, request_url)
 
 
-def check_local_rules(config, result, request_url):
+def check_local_rules(config, items, requests, request_url):
     try:
         itemclass = config.ItemRules()
-        check_item_rules(itemclass, result, request_url)
+        check_item_rules(itemclass, items, request_url)
     except AttributeError:
         pass
     try:
         reqclass = config.RequestRules()
-        check_req_rules(reqclass, result, request_url)
+        check_req_rules(reqclass, requests, request_url)
     except AttributeError:
         pass
 
 
-def validate_results(test_dir, spider_settings, result, request_url):
+def validate_results(test_dir, spider_settings, items, requests, request_url):
     config_path = os.path.join(test_dir, 'config.py')
     if not os.path.exists(config_path):
         config = None
     else:
         config = get_cb_settings(test_dir)
-    check_options(spider_settings, config, result, request_url)
-    check_local_rules(config, result, request_url)
-    check_global_rules(spider_settings, result, request_url)
+
+    check_options(spider_settings, config, items, request_url)
+    check_local_rules(config, items, requests, request_url)
+    check_global_rules(spider_settings, items, requests, request_url)
 
 
-def check_item_rules(itemclass, result, request_url):
+def check_item_rules(itemclass, items, request_url):
     itemclass_attrs = [(name, getattr(itemclass, name)) for name in dir(itemclass)
                        if not name.startswith('__')]
     item_rules = list(filter(lambda entry: callable(entry[1]), itemclass_attrs))
-    items = map(lambda x: x["data"], filter(lambda res: res["type"] == "item", result))
     for item in items:
         for rule_func in item_rules:
             try:
@@ -180,11 +177,10 @@ def check_item_rules(itemclass, result, request_url):
                                      "failed the rule %s" % (request_url, rule_func[0]))
 
 
-def check_req_rules(reqclass, result, request_url):
+def check_req_rules(reqclass, requests, request_url):
     reqclass_attrs = [(name, getattr(reqclass, name)) for name in dir(reqclass)
                       if not name.startswith('__')]
     req_rules = list(filter(lambda entry: callable(entry[1]), reqclass_attrs))
-    requests = map(lambda x: x["data"], filter(lambda res: res["type"] == "request", result))
     for req in requests:
         for rule_func in req_rules:
             try:

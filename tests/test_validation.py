@@ -27,37 +27,37 @@ class Settings1(Settings):
 
 class Settings2(Settings):
     TESTMASTER_PRIMARY_ITEM_FIELDS = ["uncool"]
-    TESTMASTER_INCLUDED_SETTINGS = []
 
 
-result1 = [{"type": "item", "data": {"name": ""}}, {"type": "request", "data": {}}]
+items1 = [{"name": ""}]
+requests = [{}]
 spider_settings1 = Settings1()
 
 spider_settings2 = Settings2()
-result2 = [{"type": "item", "data": {"uncool": "1"}}, {"type": "request", "data": {}}]
-result3 = [{"type": "item", "data": {"cool": "1"}}, {"type": "request", "data": {}}]
+items2 = [{"uncool": "1"}]
+items3 = [{"cool": "1"}]
 
 
 class TestValidation(unittest.TestCase):
     def test_conflict(self):
         write_config(config_1)
         with self.assertRaises(_InvalidOutput):
-            validate_results('', spider_settings1, result1, '')
+            validate_results('', spider_settings1, items1, requests, '')
         del_config()
 
     def test_item_rule(self):
         write_config(config_2)
         with self.assertRaises(_InvalidOutput):
-            validate_results('', spider_settings1, result1, '')
+            validate_results('', spider_settings1, items1, requests, '')
         del_config()
 
     def test_override1(self):
         write_config(config_3)
         with self.assertRaises(_InvalidOutput):
-            validate_results('', spider_settings2, result2, '')
+            validate_results('', spider_settings2, items2, requests, '')
         del_config()
 
     def test_override2(self):
         write_config(config_3)
-        validate_results('', spider_settings2, result3, '')
+        validate_results('', spider_settings2, items3, requests, '')
         del_config()

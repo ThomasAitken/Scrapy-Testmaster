@@ -1,6 +1,7 @@
 import re
 import os
 import sys
+import copy
 import json
 import scrapy
 import argparse
@@ -23,6 +24,7 @@ from scrapy_testmaster.utils import (
     get_project_dirs,
     parse_callback_result,
     prepare_callback_replay,
+    process_result,
     erase_special_metakeys
 )
 from scrapy_testmaster.utils_novel import (
@@ -222,7 +224,12 @@ class CommandLine:
                 data["result"], _ = parse_callback_result(
                     request.callback(response), spider, cb_settings
                 )
-                validate_results(fixture_dir, spider.settings, data['result'], data['request']['url'])
+                _result = copy.deepcopy(data['result'])
+                items_out, requests_out = process_result(
+                    _result, spider.settings, cb_settings)
+                validate_results(fixture_dir, spider.settings, items_out,
+                                 requests_out, data['request']['url'])
+
                 add_sample(fixture_index, fixture_dir, filename, data)
 
                 print("Fixture '{}' successfully updated.".format(

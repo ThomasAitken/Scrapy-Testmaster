@@ -21,6 +21,7 @@ from .utils import (
     get_middlewares,
     create_dir,
     parse_callback_result,
+    process_result
 )
 from .utils_novel import (
     get_cb_settings,
@@ -180,7 +181,11 @@ class TestMasterMiddleware:
         _request = copy.deepcopy(data['request'])
         _request = clean_request(_request, spider.settings, cb_settings)
 
-        validate_results(test_dir, spider.settings, data['result'], request['url'])
+        _result = copy.deepcopy(data['result'])
+        items_out, requests_out = process_result(
+            _result, spider.settings, cb_settings)
+        validate_results(test_dir, spider.settings, items_out, requests_out,
+                         request['url'])
 
         if callback_counter < max_fixtures or '_update' in response.meta:
             index = callback_counter + 1

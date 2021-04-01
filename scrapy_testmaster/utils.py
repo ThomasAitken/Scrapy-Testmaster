@@ -548,9 +548,8 @@ def generate_test(fixture_path, encoding='utf-8'):
             if fx_item['type'] == 'request':
                 fx_obj = clean_request(fx_obj, settings, cb_settings)
                 cb_obj = clean_request(cb_obj, settings, cb_settings)
-                result_to_validate = {'type': 'request', 'data': cb_obj}
                 try:
-                    validate_results(test_dir, settings, [], [result_to_validate], request.url)
+                    validate_results(test_dir, settings, [], [cb_obj], request.url)
                 except _InvalidOutput as e:
                     six.raise_from(
                         _InvalidOutput(
@@ -560,9 +559,8 @@ def generate_test(fixture_path, encoding='utf-8'):
             else:
                 clean_item(fx_obj, settings, cb_settings)
                 clean_item(cb_obj, settings, cb_settings)
-                result_to_validate = {'type': 'item', 'data': cb_obj}
                 try:
-                    validate_results(fixture_path, settings, [result_to_validate], [], request.url)
+                    validate_results(fixture_path, settings, [cb_obj], [], request.url)
                 except _InvalidOutput as e:
                     six.raise_from(
                         _InvalidOutput(

@@ -16,12 +16,11 @@ from .utils import (
     response_to_dict,
     get_or_create_test_dir,
     parse_request,
+    clean_request,
     get_project_dirs,
     get_middlewares,
     create_dir,
     parse_callback_result,
-    # clear_fixtures,
-    clean_headers
 )
 from .utils_novel import (
     get_cb_settings,
@@ -29,8 +28,6 @@ from .utils_novel import (
     write_json,
     get_fixture_counts,
     update_max_fixtures,
-    clean_request,
-    clean_splash,
     request_to_dict
 )
 
@@ -181,13 +178,7 @@ class TestMasterMiddleware:
 
         max_fixtures = update_max_fixtures(cb_settings, self.max_fixtures)
         _request = copy.deepcopy(data['request'])
-        _request['headers'] = clean_headers(_request['headers'], spider.settings,
-                                            cb_settings, "decode")
-        _request = clean_request(_request)
-        if _request.get('meta', {}).get('splash', {}).get('splash_headers', {}):
-            _request['meta']['splash']['splash_headers'] = clean_splash(
-                _request['meta']['splash']['splash_headers'], spider.settings,
-                cb_settings)
+        _request = clean_request(_request, spider.settings, cb_settings)
 
         validate_results(test_dir, spider.settings, data['result'], request['url'])
 

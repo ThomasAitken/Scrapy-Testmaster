@@ -19,12 +19,14 @@ from scrapy_testmaster.utils import (
     auto_import,
     unpickle_data,
     decompress_data,
+    get_or_create_test_dir,
     get_project_dirs,
     parse_callback_result,
     prepare_callback_replay,
-    get_or_create_test_dir
+    erase_special_metakeys
 )
 from scrapy_testmaster.utils_novel import (
+    cascade_fixtures,
     get_callbacks,
     get_cb_settings,
     get_test_paths,
@@ -71,6 +73,9 @@ class CommandLine:
                 self.dynamic = self.args.dynamic
             except AttributeError:
                 self.dynamic = None
+
+        if self.command == 'clear':
+            self.fixtures = self.args.fixtures.split(',')
 
         if self.fixture and not self.callback:
             self.error("Can't specify a fixture without a callback")
@@ -202,6 +207,7 @@ class CommandLine:
             fixture_dir, filename = os.path.split(path)
             fixture_index = re.search(r"\d+", filename).group()
             if self.dynamic:
+                request = erase_special_metakeys(request)
                 request.meta['_update'] = 1
                 request.meta['_fixture'] = fixture_index
                 req_list.append(request)
@@ -261,6 +267,13 @@ class CommandLine:
             print("Command did nothing because a dir exists for callback/s "
                   "indicated already.")
 
+    def clear(self):
+        min_fixture = min(int(f) for f in self.fixtures)
+        for f in self.fixtures:
+            dead_path = os.path.join(self.callback_dir, f'fixture{f}.bin')
+            os.remove(dead_path)
+        cascade_fixtures(self.callback_dir, min_fixture)
+
     def parse_command(self):
         if self.command == "inspect":
             self.inspect()
@@ -268,6 +281,8 @@ class CommandLine:
             self.update()
         elif self.command == "establish":
             self.establish()
+        elif self.command == "clear":
+            self.clear()
 
 
 def main():
@@ -335,11 +350,10 @@ def main():
         'inspect',
         description="Inspects fixtures data returning a JSON object",
         formatter_class=argparse.RawTextHelpFormatter)
-    inspect_cmd.add_argument('spider', help="The spider to update.")
-    inspect_cmd.add_argument('callback', help="The callback to update.")
+    inspect_cmd.add_argument('spider', help="The spider.")
+    inspect_cmd.add_argument('callback', help="The callback.")
     inspect_cmd.add_argument('fixture', help=(
-        "The fixture to update.\n"
-        "Can be the fixture number or the fixture name."))
+        "The fixture. Can be the fixture number or the fixture name."))
 
     update_cmd = subparsers.add_parser(
         'update',
@@ -367,6 +381,17 @@ def main():
     establish_cmd.add_argument('-c', '--callback', help=(
         "The callback for which to set up the test structure.\n"
         "If not preceded by a spider, this will fail.\n"))
+
+    clear_cmd = subparsers.add_parser(
+        'clear',
+        description="Deletes specified fixtures and enforces linear ordering to "
+                    "the remaining fixtures in the callback directory",
+        formatter_class=argparse.RawTextHelpFormatter)
+    clear_cmd.add_argument('spider', help="The spider.")
+    clear_cmd.add_argument('callback', help="The callback.")
+    clear_cmd.add_argument('fixtures', help=(
+        "The fixtures to be cleared, listed in terms of their number, each"
+        "separated by a comma."))
 
     cli = CommandLine(parser)
     cli.parse_command()

@@ -17,7 +17,7 @@ class RequestRules(object):
         assert("meta" in request),"Fail"
 '''
 config_3 = '''
-PRIMARY_ITEM_FIELDS = ["cool"]  
+PRIMARY_ITEM_FIELDS = ["cool"]
 '''
 
 
@@ -26,14 +26,14 @@ class Settings1(Settings):
 
 
 class Settings2(Settings):
-    TESTMASTER_PRIMARY_ITEM_FIELDS = ["uncool"]  
+    TESTMASTER_PRIMARY_ITEM_FIELDS = ["uncool"]
     TESTMASTER_INCLUDED_SETTINGS = []
 
 
 result1 = [{"type": "item", "data": {"name": ""}}, {"type": "request", "data": {}}]
 spider_settings1 = Settings1()
 
-spider_settings2 = Settings2() 
+spider_settings2 = Settings2()
 result2 = [{"type": "item", "data": {"uncool": "1"}}, {"type": "request", "data": {}}]
 result3 = [{"type": "item", "data": {"cool": "1"}}, {"type": "request", "data": {}}]
 
@@ -61,7 +61,3 @@ class TestValidation(unittest.TestCase):
         write_config(config_3)
         validate_results('', spider_settings2, result3, '')
         del_config()
-
-
-# if __name__ == '__main__':
-#     unittest.main()

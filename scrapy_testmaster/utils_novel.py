@@ -56,45 +56,6 @@ def update_max_fixtures(cb_settings, global_max_fixtures):
         return global_max_fixtures
 
 
-def clean_request(request_dict):
-    decoded = {}
-    for key, value in request_dict.items():
-        if type(value) not in (list, str):
-            try:
-                value = value.decode()
-                decoded[key] = value
-            except:
-                decoded[key] = value
-        else:
-            decoded[key] = value
-    return decoded
-
-
-def clean_splash(splash_headers, spider_settings, cb_settings):
-    excluded_global = spider_settings.get('TESTMASTER_EXCLUDED_HEADERS', default=[])
-    try:
-        excluded_local = cb_settings.EXCLUDED_HEADERS
-    except AttributeError:
-        excluded_local = []
-    excluded = excluded_local if excluded_local else excluded_global
-
-    included_global = spider_settings.get('TESTMASTER_INCLUDED_AUTH_HEADERS', default=[])
-    try:
-        included_local = cb_settings.INCLUDED_AUTH_HEADERS
-    except AttributeError:
-        included_local = []
-    included = included_local if included_local else included_global
-    if 'Authorization' not in included or 'Authorization' in excluded:
-        splash_headers.pop('Authorization', None)
-    # deliberate inclusion!
-    if 'Authorization' in splash_headers:
-        try:
-            splash_headers['Authorization'] = splash_headers['Authorization'].decode()
-        except AttributeError:
-            pass
-    return splash_headers
-
-
 def get_num_fixtures(test_dir):
     if not os.path.exists(test_dir):
         return 0
@@ -143,17 +104,21 @@ def basic_items_check(items, obligate_fields, primary_fields, request_url):
 
 
 def check_options(spider_settings, config, result, request_url):
-    obligate_fields = set(spider_settings.getlist('TESTMASTER_OBLIGATE_ITEM_FIELDS', []))
-    primary_fields = set(spider_settings.getlist('TESTMASTER_PRIMARY_ITEM_FIELDS', []))
+    obligate_local = set()
+    primary_local = set()
+    obligate_global = set(spider_settings.getlist('TESTMASTER_OBLIGATE_ITEM_FIELDS', []))
+    primary_global = set(spider_settings.getlist('TESTMASTER_PRIMARY_ITEM_FIELDS', []))
     if config is not None:
         try:
-            obligate_fields = set(config.OBLIGATE_ITEM_FIELDS)
+            obligate_local = set(config.OBLIGATE_ITEM_FIELDS)
         except AttributeError:
-            obligate_fields = set()
+            pass
         try:
-            primary_fields = set(config.PRIMARY_ITEM_FIELDS)
+            primary_local = set(config.PRIMARY_ITEM_FIELDS)
         except AttributeError:
-            primary_fields = set()
+            pass
+    obligate_fields = obligate_local if obligate_local else obligate_global
+    primary_fields = primary_local if primary_local else primary_global
     items = map(lambda x: x["data"], filter(lambda res: res["type"] == "item", result))
     basic_items_check(items, obligate_fields, primary_fields, request_url)
     items = map(lambda x: x["data"], filter(lambda res: res["type"] == "item", result))
@@ -229,15 +194,15 @@ def check_req_rules(reqclass, result, request_url):
                                      "failed the rule %s" % (request_url, rule_func[0]))
 
 
-def get_num_objects(result, _type):
+def _get_num_objects(result, _type):
     return len(list(filter(lambda entry: entry['type'] == _type, result)))
 
 
 def write_json(test_dir, request, result, fixture_num):
     fixture = {}
     fixture["request"] = request
-    fixture["num_items"] = get_num_objects(result, "item")
-    fixture["num_requests"] = get_num_objects(result, "request")
+    fixture["num_items"] = _get_num_objects(result, "item")
+    fixture["num_requests"] = _get_num_objects(result, "request")
     json_path = os.path.join(test_dir, 'view.json')
     if os.path.exists(json_path):
         with open(json_path, 'r') as f:
@@ -355,6 +320,27 @@ def trigger_requests(crawler_process, spider, requests):
     spidercls.start_requests = lambda s: requests
     crawler_process.crawl(spidercls)
     crawler_process.start()
+
+
+def cascade_fixtures(test_dir, min_fixture_cleared):
+    fixtures = list(filter(lambda d: '.bin' in d, os.listdir(test_dir)))
+    fixtures_store = [(f, int(re.search(r'(\d+)\.bin', f).group(1))) for f in
+                      fixtures]
+    fixtures_to_move = list(filter(lambda f: f[1] > min_fixture_cleared,
+                                   fixtures_store))
+    fixtures_to_move.sort(key=lambda f: f[1])
+    json_path = os.path.join(test_dir, 'view.json')
+    with open(json_path, 'r') as f:
+        curr_json = json.load(f)
+    new_num = min_fixture_cleared
+    for name, num in fixtures_to_move:
+        os.rename(os.path.join(test_dir, name),
+                  os.path.join(test_dir, 'fixture%d.bin' % new_num))
+        curr_json[str(new_num)] = curr_json[str(num)]
+        del curr_json[str(num)]
+        new_num += 1
+    with open(json_path, 'w') as f:
+        json.dump(curr_json, f)
 
 
 # This and the next function are extremely similar to functions found in

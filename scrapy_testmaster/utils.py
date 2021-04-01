@@ -3,6 +3,7 @@ import sys
 import copy
 import zlib
 import pickle
+import json
 import shutil
 from importlib import import_module
 from itertools import islice
@@ -197,7 +198,7 @@ def parse_request(request, spider, cb_settings):
     if not _request['callback']:
         _request['callback'] = 'parse'
 
-    clean_headers(_request['headers'], spider.settings, cb_settings)
+    _clean_headers(_request['headers'], spider.settings, cb_settings)
 
     _meta = {}
     for key, value in _request.get('meta').items():
@@ -208,17 +209,66 @@ def parse_request(request, spider, cb_settings):
     return _request
 
 
-def clean_request(request, spider_settings, cb_settings):
-    skipped_global = spider_settings.get('TESTMASTER_REQUEST_SKIPPED_FIELDS', default=[])
+def _decode_dict(data):
+    decoded = {}
+    for key, value in data.items():
+        if isinstance(key, bytes):
+            key = key.decode()
+        if isinstance(value, bytes):
+            value = value.decode()
+        if isinstance(value, list) and len(value) > 0:
+            if isinstance(value[0], bytes):
+                value = value[0].decode()
+        decoded[key] = value
+    return decoded
+
+
+def _clean_splash(meta, spider_settings, cb_settings):
+    splash_headers = meta.get('splash', {}).get('splash_headers', {})
+    excluded_global = spider_settings.get(
+        'TESTMASTER_EXCLUDED_HEADERS', default=[])
     try:
-        skipped_local = cb_settings.REQUEST_SKIPPED_FIELDS
+        excluded_local = cb_settings.EXCLUDED_HEADERS
     except AttributeError:
-        skipped_local = []
-    skipped_fields = skipped_local if skipped_local else skipped_global
-    _clean(request, skipped_fields)
+        excluded_local = []
+    excluded = excluded_local if excluded_local else excluded_global
+
+    included_global = spider_settings.get(
+        'TESTMASTER_INCLUDED_AUTH_HEADERS', default=[])
+    try:
+        included_local = cb_settings.INCLUDED_AUTH_HEADERS
+    except AttributeError:
+        included_local = []
+    included = included_local if included_local else included_global
+    if 'Authorization' not in included or 'Authorization' in excluded:
+        splash_headers.pop('Authorization', None)
+    # deliberate inclusion!
+    if 'Authorization' in splash_headers:
+        try:
+            splash_headers['Authorization'] = splash_headers['Authorization'].decode()
+        except AttributeError:
+            pass
 
 
-def clean_headers(headers, spider_settings, cb_settings, mode=""):
+def _process_for_json(data):
+    def _is_jsonable(short_dict):
+        try:
+            json.dumps(short_dict)
+            return True
+        except:
+            return False
+    to_delete = []
+    for k, v in data.items():
+        if not _is_jsonable({k: v}):
+            try:
+                data[k] = str(v)
+            except:
+                to_delete.append(k)
+    for d in to_delete:
+        del data[d]
+
+
+def _clean_headers(headers, spider_settings, cb_settings, mode=""):
     excluded_global = spider_settings.get('TESTMASTER_EXCLUDED_HEADERS', default=[])
     try:
         excluded_local = cb_settings.EXCLUDED_HEADERS
@@ -239,10 +289,24 @@ def clean_headers(headers, spider_settings, cb_settings, mode=""):
         headers.pop(header, None)
         headers.pop(header.encode(), None)
     if mode == "decode":
-        decoded = {}
-        for key, value in headers.items():
-            decoded[key.decode()] = value[0].decode()
-        return decoded
+        headers = _decode_dict(headers)
+    return headers
+
+
+def clean_request(request, spider_settings, cb_settings):
+    skipped_global = spider_settings.get('TESTMASTER_REQUEST_SKIPPED_FIELDS', default=[])
+    try:
+        skipped_local = cb_settings.REQUEST_SKIPPED_FIELDS
+    except AttributeError:
+        skipped_local = []
+    skipped_fields = skipped_local if skipped_local else skipped_global
+    _clean(request, skipped_fields)
+    request = _decode_dict(request)
+    request['headers'] = _clean_headers(request['headers'], spider_settings,
+                                        cb_settings, mode="decode")
+    _clean_splash(request['meta'], spider_settings, cb_settings)
+    _process_for_json(request['meta'])
+    return request
 
 
 def clean_item(item, spider_settings, cb_settings):
@@ -259,6 +323,15 @@ def clean_item(item, spider_settings, cb_settings):
 def _clean(data, field_list):
     for field in field_list:
         data.pop(field, None)
+
+
+def erase_special_metakeys(request):
+    new_meta = {}
+    for k, v in request.meta.items():
+        if not k.startswith('_'):
+            new_meta[k] = v
+    new_req = request.replace(meta=new_meta)
+    return new_req
 
 
 def write_test(path, test_name, url):
@@ -285,7 +358,7 @@ class TestMaster(unittest.TestCase):
         self.maxDiff = None
         for f in files:
             file_path = os.path.join(os.path.dirname(__file__), f)
-            print("Testing fixture '%s'" % (f))
+            print("Testing fixture '%s' in location: %s" % (f, file_path))
             test = generate_test(os.path.abspath(file_path))
             test(self)
 
@@ -453,17 +526,18 @@ def generate_test(fixture_path, encoding='utf-8'):
                         fixture_path)
                 )
 
-            cb_settings = get_cb_settings(fixture_path)
+            test_dir = '/'.join(fixture_path.split('/')[:-1])
+            cb_settings = get_cb_settings(test_dir)
 
             cb_obj = parse_object(cb_obj, spider, cb_settings)
 
             fx_obj = fx_item['data']
             if fx_item['type'] == 'request':
-                clean_request(fx_obj, settings, cb_settings)
-                clean_request(cb_obj, settings, cb_settings)
+                fx_obj = clean_request(fx_obj, settings, cb_settings)
+                cb_obj = clean_request(cb_obj, settings, cb_settings)
                 result_to_validate = {'type': 'request', 'data': cb_obj}
                 try:
-                    validate_results(fixture_path, settings, [result_to_validate], request.url)
+                    validate_results(test_dir, settings, [result_to_validate], request.url)
                 except _InvalidOutput as e:
                     six.raise_from(
                         _InvalidOutput(

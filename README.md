@@ -450,6 +450,7 @@ $ testmaster update my_spider -c my_callback --new
 As shown by the above, any call of `testmaster update` with `--dynamic` or `--new` options towards a particular callback will automatically trigger the execution of any requests set down in the REQUESTS_TO_ADD list within the relevant config.py file. If these requests are successful according to your rules, and there is space in the fixtures buffer for that particular callback, these requests will result in corresponding fixtures being added. (This is the only way to trigger the execution of these requests.)
 
 `testmaster update` will refuse to write its updates if the results fail any of your custom rules or configuration options. So you don't have to worry about your fixtures being overwritten with junk. This means you can use this command to check the correctness of changes to your code in a more fine-grained way than the Scrapy Autounit library enables.  
+<br/>
 
 ### `testmaster clear`
 This allows you to clear out old fixtures that you no longer need. This may be the case, for example, if the request to which the fixture corresponds no longer works for the website in question (so that there is no hope of fixing it via `testmaster update ... --dynamic`).

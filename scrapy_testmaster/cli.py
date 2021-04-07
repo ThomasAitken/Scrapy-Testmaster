@@ -1,7 +1,6 @@
 import re
 import os
 import sys
-import copy
 import json
 import scrapy
 import argparse
@@ -221,12 +220,11 @@ class CommandLine:
                     request=request, **data['response'])
 
                 cb_settings = get_cb_settings(fixture_dir)
-                data["result"], _ = parse_callback_result(
+                data['result'], _ = parse_callback_result(
                     request.callback(response), spider, cb_settings
                 )
-                _result = copy.deepcopy(data['result'])
                 items_out, requests_out = process_result(
-                    _result, spider.settings, cb_settings)
+                    data['result'], spider.settings, cb_settings)
                 validate_results(fixture_dir, spider.settings, items_out,
                                  requests_out, data['request']['url'])
 

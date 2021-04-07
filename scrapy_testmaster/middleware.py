@@ -113,7 +113,8 @@ class TestMasterMiddleware:
             cb_name = 'parse'
         else:
             cb_name = _request['callback']
-        test_dir = os.path.join(self.base_path, sanitize_module_name(spider.name), cb_name)
+        test_dir = os.path.join(
+            self.base_path, 'tests', sanitize_module_name(spider.name), cb_name)
         cb_settings = get_cb_settings(test_dir)
         filter_args = {'crawler', 'settings', 'start_urls'}
         if isinstance(spider, CrawlSpider):
@@ -181,9 +182,8 @@ class TestMasterMiddleware:
         _request = copy.deepcopy(data['request'])
         _request = clean_request(_request, spider.settings, cb_settings)
 
-        _result = copy.deepcopy(data['result'])
         items_out, requests_out = process_result(
-            _result, spider.settings, cb_settings)
+            data['result'], spider.settings, cb_settings)
         validate_results(test_dir, spider.settings, items_out, requests_out,
                          request['url'])
 

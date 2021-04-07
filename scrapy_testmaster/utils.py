@@ -193,8 +193,9 @@ def parse_object(_object, spider, cb_settings):
     return _object
 
 
+# processes request for recording, handling auth settings
 def parse_request(request, spider, cb_settings):
-    _request = request_to_dict(request, spider=spider)
+    _request = copy.deepcopy(request_to_dict(request, spider=spider))
     if not _request['callback']:
         _request['callback'] = 'parse'
 
@@ -204,6 +205,7 @@ def parse_request(request, spider, cb_settings):
     for key, value in _request.get('meta').items():
         if key != '_testmaster':
             _meta[key] = parse_object(value, spider, cb_settings)
+    _clean_splash(_meta, spider.settings, cb_settings)
     _request['meta'] = _meta
 
     return _request
@@ -293,6 +295,7 @@ def _clean_headers(headers, spider_settings, cb_settings, mode=""):
     return headers
 
 
+# processes request into JSON format for inscribing in view.json and for validation
 def clean_request(request, spider_settings, cb_settings):
     skipped_global = spider_settings.get('TESTMASTER_REQUEST_SKIPPED_FIELDS', default=[])
     try:
@@ -326,9 +329,9 @@ def _clean(data, field_list):
 
 
 def process_result(result, spider_settings, cb_settings):
-    items = [x["data"] for x in filter(
+    items = [copy.deepcopy(x["data"]) for x in filter(
         lambda res: res["type"] == "item", result)]
-    requests = [x["data"] for x in filter(
+    requests = [copy.deepcopy(x["data"]) for x in filter(
         lambda res: res["type"] == "request", result)]
     for i in range(len(items)):
         clean_item(items[i], spider_settings, cb_settings)

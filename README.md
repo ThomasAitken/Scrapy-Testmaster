@@ -323,7 +323,7 @@ One miscellaneous thing to note is that if you have a set value for **TESTMASTER
 
 Example:
 ```
-$ testmaster parse "url1,url2,url3" --spider=my_spider -c my_callback --meta='{"x":"y"}' --homepage -d 2...
+$ testmaster parse "url1|url2|url3" --spider=my_spider -c my_callback --meta='{"x":"y"}' --homepage -d 2...
 ```
 Because of the `homepage` arg, this will first try to grab a homepage value from the `start_urls` field for `my_spider` (it will move on if it fails). It will pick up cookies from the homepage if possible, then use these to make the requests to the specified urls. Because of the `--depth=2` arg, it will make one further request for each of the three requests that lead to another request in `my_callback`. For each of the requests generated, a fixture will be written subject to the usual conditions and/or custom rules, and (as with the Scrapy parse command) the scraped items will be printed to the terminal for perusal.  
 
@@ -461,7 +461,7 @@ This allows you to clear out old fixtures that you no longer need. This may be t
 
 All arguments are obligatory. Example usage:
 ```
-$ testmaster clear my_spider my_callback 5,10,11'
+$ testmaster clear my_spider my_callback 5,10,11
 ```
 This will cause fixtures 5, 10, 11 to disappear from the callback specified. Then the others will be renamed, so that fixture 6 becomes fixture 5, 7 becomes 6 and so on. Finally, the `view.json` file is updated to match this re-numbering.
 

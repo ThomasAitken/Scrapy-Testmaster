@@ -182,6 +182,9 @@ Sets the maximum number of fixtures to store per callback.
 `Minimum: 10`  
 `Default: 10`
 
+**TESTMASTER_IGNORE_SPIDER_ARGS**
+If `True`, testing your fixtures will ignore explicitly checking for any new attributes you have added to your spider `__init__` function. By default, if you add a new attribute after you write a test, re-running that test will cause it to fail.
+
 **TESTMASTER_SKIPPED_FIELDS**  
 Sets a list of fields to be skipped from testing your callbacks' items. It's useful to bypass fields that return a different value on each run.  
 For example if you have a field that is always set to `datetime.now()` in your spider, you probably want to add that field to this list to be skipped on tests. Otherwise you'll get a different value when you're generating your fixtures than when you're running your tests, making your tests fail.  

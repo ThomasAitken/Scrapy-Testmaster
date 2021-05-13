@@ -516,8 +516,9 @@ def generate_test(fixture_path, encoding='utf-8'):
             k: v for k, v in spider.__dict__.items()
             if k not in ('crawler', 'settings', 'start_urls')
         }
-        self.assertEqual(spider_args_in, result_attr_in,
-                         'Input arguments not equal!\nFixture path: %s' % fixture_path)
+        if not settings.getbool("TESTMASTER_IGNORE_SPIDER_ARGS"):
+            self.assertEqual(spider_args_in, result_attr_in,
+                             'Input arguments not equal!\nFixture path: %s' % fixture_path)
 
         for mw in middlewares:
             if hasattr(mw, 'process_spider_input'):
@@ -589,6 +590,7 @@ def generate_test(fixture_path, encoding='utf-8'):
             if k not in ('crawler', 'settings', 'start_urls')
         }
 
-        self.assertEqual(data['spider_args_out'], result_attr_out,
-                         'Output arguments not equal!\nFixture path: %s' % fixture_path)
+        if not settings.getbool("TESTMASTER_IGNORE_SPIDER_ARGS"):
+            self.assertEqual(data['spider_args_out'], result_attr_out,
+                             'Output arguments not equal!\nFixture path: %s' % fixture_path)
     return test

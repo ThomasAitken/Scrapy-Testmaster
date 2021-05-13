@@ -182,7 +182,7 @@ Sets the maximum number of fixtures to store per callback.
 `Minimum: 10`  
 `Default: 10`
 
-**TESTMASTER_IGNORE_SPIDER_ARGS**
+**TESTMASTER_IGNORE_SPIDER_ARGS**  
 If `True`, testing your fixtures will ignore explicitly checking for any new attributes you have added to your spider `__init__` function. By default, if you add a new attribute after you write a test, re-running that test will cause it to fail.
 
 **TESTMASTER_SKIPPED_FIELDS**  

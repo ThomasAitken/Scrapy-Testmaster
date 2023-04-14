@@ -21,7 +21,7 @@ from scrapy.utils.conf import (build_component_list, closest_scrapy_cfg,
 from scrapy.utils.misc import arg_to_iter, load_object, walk_modules
 from scrapy.utils.project import get_project_settings
 from scrapy.utils.python import to_bytes
-from scrapy.utils.reqser import request_from_dict
+from scrapy.utils.request import request_from_dict
 from scrapy.utils.spider import iter_spider_classes
 
 from .utils_novel import get_cb_settings, request_to_dict, validate_results
@@ -513,7 +513,7 @@ def generate_test(fixture_path, encoding='utf-8'):
         spider_args_in = data.get(
             'spider_args', data.get('spider_args_in', {}))
         set_spider_attrs(spider, spider_args_in)
-        request = request_from_dict(data['request'], spider)
+        request = request_from_dict(data['request'], spider=spider)
         response_cls = auto_import(data['response'].pop(
             'cls', 'scrapy.http.HtmlResponse'))
         response = response_cls(request=request, **data['response'])

@@ -18,6 +18,7 @@ class MySpider(scrapy.Spider):
         SPIDER_MIDDLEWARES={{
             'scrapy_testmaster.TestMasterMiddleware': 950,
         }},
+        REQUEST_FINGERPRINTER_IMPLEMENTATION='2.7',
         {custom_settings}
     )
 

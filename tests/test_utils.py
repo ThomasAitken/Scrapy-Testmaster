@@ -1,14 +1,16 @@
-import unittest
-
 import copy
 import datetime
+import unittest
 
 from scrapy_testmaster.utils import clean_item, clean_request
 from .shared import Settings
 
 
 class Config1(object):
-    SKIPPED_FIELDS = ["timestamp"]
+    SKIPPED_FIELDS = ["timestamp", "nested/item"]
+    SKIPPED_FIELDS_DELIMITER = "/"
+    REQUEST_SKIPPED_FIELDS = ["meta+nested+item"]
+    REQUEST_SKIPPED_FIELDS_DELIMITER = "+"
 
 
 class Config2(object):
@@ -18,7 +20,13 @@ class Config2(object):
 settings1 = Settings()
 config1 = Config1()
 config2 = Config2()
-cb_obj = {"a": "b", "timestamp": "xyz"}
+cb_obj = {
+    "a": "b",
+    "timestamp": "xyz",
+    "nested": {
+        "item": 20
+    }
+}
 ugly_request = {
     "url": "https://examplewebsite011235811.com",
     "coolkey": b"bytestringexample",
@@ -32,6 +40,9 @@ ugly_request = {
             "splash_headers": {
                 "Authorization": b"Basic auth"
             }
+        },
+        "nested": {
+            "item": 10
         }
     }
 }
@@ -41,7 +52,7 @@ class TestUtils(unittest.TestCase):
     clean_item(cb_obj, settings1, config1)
 
     def test_clean_item(self):
-        self.assertDictEqual(cb_obj, {"a": "b"})
+        self.assertDictEqual(cb_obj, {"a": "b", "nested": {}})
 
     def test_clean_request(self):
         temp_req = copy.deepcopy(ugly_request)
@@ -58,7 +69,8 @@ class TestUtils(unittest.TestCase):
                     "date": str(datetime.date.today()),
                     "splash": {
                         "splash_headers": {}
-                    }
+                    },
+                    "nested": {}
                 }
             })
 
@@ -80,6 +92,9 @@ class TestUtils(unittest.TestCase):
                         "splash_headers": {
                             "Authorization": "Basic auth"
                         }
+                    },
+                    "nested": {
+                        "item": 10
                     }
                 }
             })

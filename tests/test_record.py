@@ -337,6 +337,14 @@ class TestRecording(unittest.TestCase):
             spider.test()
 
     def test_skipped_fields(self):
+        """
+        This test relies on the fact that 'ts' will have different values
+        when initially generating the testmaster files and when running the
+        tests. The test will fail if the key 'ts' will be presented in the
+        spider's output because the value stored in the fixture will be
+        different from the one when running the spider during testing
+        (since it's using time.time())
+        """
         with CaseSpider() as spider:
             spider.imports('import time')
             spider.custom_settings('''
@@ -350,7 +358,34 @@ class TestRecording(unittest.TestCase):
             spider.record()
             spider.test()
 
+    def test_skipped_nested_fields(self):
+        """
+        This test works similar to 'test_skipped_fields'
+        """
+        with CaseSpider() as spider:
+            spider.imports('import time')
+            spider.custom_settings('''
+                TESTMASTER_SKIPPED_FIELDS = ['nested-item'],
+                TESTMASTER_SKIPPED_FIELDS_DELIMITER = '-'
+            ''')
+            spider.start_requests("yield scrapy.Request('data:text/plain,')")
+            spider.parse('''
+                time.sleep(0.5)
+                yield {'a': 4, 'nested': {'item': time.time()}}
+            ''')
+            spider.record()
+            spider.test()
+
+
     def test_request_skipped_fields(self):
+        """
+        This test relies on the fact that the url will have different values
+        when initially generating the testmaster files and when running the
+        tests. The test will fail if the url will be presented in the
+        spider's output because the value stored in the fixture will be
+        different from the one when running the spider during testing
+        (since it's adding a random string at the end using random.random())
+        """
         with CaseSpider() as spider:
             spider.imports('import random')
             spider.custom_settings('''
@@ -367,6 +402,29 @@ class TestRecording(unittest.TestCase):
             ''')
             spider.record()
             spider.test()
+
+    def test_request_skipped_nested_fields(self):
+        """
+        This test is similar to 'test_request_skipped_fields'
+        """
+        with CaseSpider() as spider:
+            spider.imports('import random')
+            spider.custom_settings('''
+                TESTMASTER_REQUEST_SKIPPED_FIELDS = ['meta-nested-item'],
+                TESTMASTER_REQUEST_SKIPPED_FIELDS_DELIMITER = '-'
+            ''')
+            spider.start_requests("yield scrapy.Request('data:text/plain,')")
+            spider.parse('''
+                yield {'a': 4}
+                if not response.meta.get('done'):
+                    yield scrapy.Request(
+                        'data:text/plain,%s',
+                        meta={'done': True, 'nested': {'item': random.random()}}
+                    )
+            ''')
+            spider.record()
+            spider.test()
+
 
     def test_nested_request_in_output(self):
         with CaseSpider() as spider:

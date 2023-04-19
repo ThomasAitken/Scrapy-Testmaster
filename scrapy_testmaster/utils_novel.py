@@ -1,15 +1,15 @@
-import os
-import shutil
 import importlib
 import inspect
-from glob import glob
-import re
 import json
+import os
+import re
+import shutil
+from glob import glob
 
+from scrapy.exceptions import _InvalidOutput, UsageError
 from scrapy.http import Request
 from scrapy.utils.python import to_unicode
-from scrapy.utils.reqser import request_from_dict, _get_method
-from scrapy.exceptions import _InvalidOutput, UsageError
+from scrapy.utils.request import _get_method, request_from_dict
 
 
 def get_cb_settings(test_dir):
@@ -69,8 +69,11 @@ def get_num_fixtures(test_dir):
 
 def get_fixture_counts(spider_dir, spider, extra_path):
     fixture_counts = {}
-    poss_cb_names = [name for name in dir(spider) if not name.startswith('__') and not
-                     name == "start_requests" and callable(getattr(spider, name))]
+    poss_cb_names = [
+        name for name
+        in dir(spider)
+        if not name.startswith('__') and not name == "start_requests" and callable(getattr(spider, name))
+    ]
     dir_list = os.listdir(spider_dir)
     # assuming extra path in play
     if len(set(dir_list).intersection(set(poss_cb_names))) == 0:
@@ -236,7 +239,7 @@ CURRENT_TESTS = [
 def get_callbacks(spider_path):
     with open(spider_path, 'r') as spider_file:
         text = spider_file.read()
-        callbacks = list(filter(lambda match: not(match.startswith('__') or match == 'start_requests'),
+        callbacks = list(filter(lambda match: not (match.startswith('__') or match == 'start_requests'),
                                 re.findall(r"def\s+(\w+)\([^\n]+response", text)))
         return callbacks
 

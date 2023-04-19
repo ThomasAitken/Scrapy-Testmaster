@@ -191,10 +191,20 @@ Sets a list of fields to be skipped from testing your callbacks' items. It's use
 For example if you have a field that is always set to `datetime.now()` in your spider, you probably want to add that field to this list to be skipped on tests. Otherwise you'll get a different value when you're generating your fixtures than when you're running your tests, making your tests fail.  
 `Default: []`
 
+**TESTMASTER_SKIPPED_FIELDS_DELIMITER**  
+Used together with `TESTMASTER_SKIPPED_FIELDS_DELIMITER` and meant for nested items.
+e.g. for `item['foo']['bar']`, the value for `TESTMASTER_SKIPPED_FIELDS_DELIMITER` can be 'foo.bar' and `TESTMASTER_SKIPPED_FIELDS_DELIMITER` set to `'.'`  
+`Default: '.'`
+
 **TESTMASTER_REQUEST_SKIPPED_FIELDS**  
 Sets a list of request fields to be skipped when running your tests.  
 Similar to TESTMASTER_SKIPPED_FIELDS but applied to requests instead of items.  
 `Default: []`
+
+**TESTMASTER_REQUEST_SKIPPED_FIELDS_DELIMITER**  
+Used together with `TESTMASTER_REQUEST_SKIPPED_FIELDS` and meant for nested request attributes.
+e.g. for `request.meta['foo']['bar']`, the value for `TESTMASTER_REQUEST_SKIPPED_FIELDS` can be 'meta.foo.bar' and `TESTMASTER_REQUEST_SKIPPED_FIELDS_DELIMITER` set to `'.'`  
+`Default: '.'`
 
 **TESTMASTER_EXCLUDED_HEADERS**  
 Sets a list of headers to exclude from requests recording.  
@@ -244,7 +254,13 @@ Equivalent to global setting.
 **SKIPPED_FIELDS**  
 Equivalent to global setting.
 
+**SKIPPED_FIELDS_DELIMITER**  
+Equivalent to global setting.
+
 **REQUEST_SKIPPED_FIELDS**   
+Equivalent to global setting.
+
+**REQUEST_SKIPPED_FIELDS_DELIMITER**   
 Equivalent to global setting.
 
 **EXCLUDED_HEADERS**   

@@ -1,15 +1,15 @@
-import os
-import sys
 import copy
-import zlib
-import pickle
 import json
+import os
+import pickle
 import shutil
+import sys
+import zlib
+from collections.abc import MutableMapping
 from importlib import import_module
 from itertools import islice
 
-from .utils_novel import get_cb_settings, request_to_dict, validate_results
-
+import datadiff.tools
 import six
 from scrapy import signals
 from scrapy.crawler import Crawler
@@ -21,10 +21,10 @@ from scrapy.utils.conf import (build_component_list, closest_scrapy_cfg,
 from scrapy.utils.misc import arg_to_iter, load_object, walk_modules
 from scrapy.utils.project import get_project_settings
 from scrapy.utils.python import to_bytes
-from scrapy.utils.reqser import request_from_dict
+from scrapy.utils.request import request_from_dict
 from scrapy.utils.spider import iter_spider_classes
 
-import datadiff.tools
+from .utils_novel import get_cb_settings, request_to_dict, validate_results
 
 NO_ITEM_MARKER = object()
 FIXTURE_VERSION = 1
@@ -259,6 +259,7 @@ def _process_for_json(data):
             return True
         except:
             return False
+
     to_delete = []
     for k, v in data.items():
         if not _is_jsonable({k: v}):
@@ -298,12 +299,19 @@ def _clean_headers(headers, spider_settings, cb_settings, mode=""):
 # processes request into JSON format for inscribing in view.json and for validation
 def clean_request(request, spider_settings, cb_settings):
     skipped_global = spider_settings.get('TESTMASTER_REQUEST_SKIPPED_FIELDS', default=[])
+
     try:
         skipped_local = cb_settings.REQUEST_SKIPPED_FIELDS
     except AttributeError:
         skipped_local = []
     skipped_fields = skipped_local if skipped_local else skipped_global
-    _clean(request, skipped_fields)
+
+    try:
+        skipped_fields_delimiter = cb_settings.REQUEST_SKIPPED_FIELDS_DELIMITER
+    except AttributeError:
+        skipped_fields_delimiter = spider_settings.get('TESTMASTER_REQUEST_SKIPPED_FIELDS_DELIMITER', default='.')
+
+    _clean(request, skipped_fields, skipped_fields_delimiter)
     request = _decode_dict(request)
     request['headers'] = _clean_headers(request['headers'], spider_settings,
                                         cb_settings, mode="decode")
@@ -320,12 +328,24 @@ def clean_item(item, spider_settings, cb_settings):
         skipped_local = []
     skipped_fields = skipped_local if skipped_local else skipped_global
 
-    _clean(item, skipped_fields)
+    try:
+        skipped_fields_delimiter = cb_settings.SKIPPED_FIELDS_DELIMITER
+    except AttributeError:
+        skipped_fields_delimiter = spider_settings.get('TESTMASTER_SKIPPED_FIELDS_DELIMITER', default='.')
+
+    _clean(item, skipped_fields, skipped_fields_delimiter)
 
 
-def _clean(data, field_list):
+def _clean(data, field_list, skipped_fields_delimiter):
     for field in field_list:
-        data.pop(field, None)
+        field_parts = field.split(skipped_fields_delimiter)
+        item = data
+        for field_part in field_parts[:-1]:
+            if isinstance(item, MutableMapping):
+                item = item.get(field_part) or {}
+
+        if isinstance(item, MutableMapping):
+            item.pop(field_parts[-1], None)
 
 
 def process_result(result, spider_settings, cb_settings):
@@ -493,7 +513,7 @@ def generate_test(fixture_path, encoding='utf-8'):
         spider_args_in = data.get(
             'spider_args', data.get('spider_args_in', {}))
         set_spider_attrs(spider, spider_args_in)
-        request = request_from_dict(data['request'], spider)
+        request = request_from_dict(data['request'], spider=spider)
         response_cls = auto_import(data['response'].pop(
             'cls', 'scrapy.http.HtmlResponse'))
         response = response_cls(request=request, **data['response'])
@@ -532,7 +552,7 @@ def generate_test(fixture_path, encoding='utf-8'):
                 result = mw.process_spider_output(response, result, spider)
 
         for index, (cb_obj, fx_item) in enumerate(six.moves.zip_longest(
-            result, fx_result, fillvalue=NO_ITEM_MARKER
+                result, fx_result, fillvalue=NO_ITEM_MARKER
         )):
             if any(item == NO_ITEM_MARKER for item in (cb_obj, fx_item)):
                 raise AssertionError(
@@ -593,4 +613,5 @@ def generate_test(fixture_path, encoding='utf-8'):
         if not settings.getbool("TESTMASTER_IGNORE_SPIDER_ARGS"):
             self.assertEqual(data['spider_args_out'], result_attr_out,
                              'Output arguments not equal!\nFixture path: %s' % fixture_path)
+
     return test
